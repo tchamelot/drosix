@@ -1,0 +1,3 @@
+[submodule "mpu9250"]
+	path = mpu9250
+	url = git@github.com:tchamelot/mpu9250.git
