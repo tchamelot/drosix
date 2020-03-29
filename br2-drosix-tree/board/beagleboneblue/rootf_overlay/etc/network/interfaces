@@ -1,0 +1,29 @@
+ 
+# The loopback network interface.
+auto lo
+iface lo inet loopback
+
+# WiFi w/ onboard device (dynamic IP).
+#auto wlan0
+#iface wlan0 inet dhcp
+#wpa-ssid "<your SSID>"
+#wpa-psk "<your WiFi password>"
+#dns-nameservers 8.8.8.8 1.1.1.1
+
+# Ethernet/RNDIS gadget (u_ether)
+iface usb0 inet static
+address 192.168.7.2
+netmask 255.255.255.0
+network 192.168.7.0
+gateway 192.168.7.1
+post-up /usr/sbin/udhcpd
+
+auto wlan0
+iface wlan0 inet static
+        address 192.168.6.1
+        netmask 255.255.255.0
+        network 192.168.6.0
+        gateway 192.168.6.1
+        pre-up wpa_supplicant -B -Dnl80211 -iwlan0 -c/etc/wpa_supplicant.conf
+        post-down killall -q wpa_supplicant
+        wait-delay 15

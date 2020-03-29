@@ -1,0 +1,14 @@
+config BR2_PACKAGE_LIBROBOTCONTROL
+	bool "librobotcontrol"
+	depends on BR2_aarch64 || BR2_arm
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on !BR2_STATIC_LIBS
+	help    
+	  This package contains the library and example/testing
+	  programs for the Robot Control project.
+
+	  http://strawsondesign.com/docs/librobotcontrol/
+
+comment "librobotcontrol needs a toolchain w/ threads, dynamic library"
+	depends on BR2_aarch64 || BR2_arm
+	depends on !BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS

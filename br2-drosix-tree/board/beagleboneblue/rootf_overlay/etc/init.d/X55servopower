@@ -1,0 +1,45 @@
+#!/bin/sh
+
+VERB="$1"
+shift
+
+PIN=80
+
+#------------------------------------------------
+case "$VERB" in
+  start)
+    echo "Enabling Servo Power Rail..."
+    
+    if [ ! -L /sys/class/gpio/gpio${PIN} ]; then
+      echo "  exporting gpio${PIN}"
+      echo ${PIN} >/sys/class/gpio/export
+    fi
+    
+    echo out >/sys/class/gpio/gpio${PIN}/direction
+    echo 1 >/sys/class/gpio/gpio${PIN}/value
+    echo "OK"
+    ;;
+
+  stop)
+    echo "Disabling Servo Power Rail..."
+    
+    if [ ! -L /sys/class/gpio/gpio${PIN} ]; then
+      echo "  gpio${PIN} is not configured"
+    else
+      echo 0 >/sys/class/gpio/gpio${PIN}/value    
+    fi
+
+    echo "OK"
+    ;;
+
+  restart)
+    $0 stop
+    sleep 1
+    $0 start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+esac
+
+exit 0

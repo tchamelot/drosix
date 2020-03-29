@@ -1,0 +1,23 @@
+--- librobotcontrol-orig/library/Makefile	2020-02-16 23:00:41.073671062 +0100
++++ librobotcontrol-2d2467017519ab2b48cd20715f7449de3132cfb9/library/Makefile	2020-02-16 22:56:07.421281130 +0100
+@@ -22,9 +22,9 @@
+ WFLAGS		:= -Wall -Wextra -Werror=float-equal -Wuninitialized \
+ 	-Wunused-variable -Wdouble-promotion -pedantic -Wmissing-prototypes \
+ 	-Wmissing-declarations -Werror=undef
+-CFLAGS		:= -g -fPIC -I $(INCLUDEDIR)
++override CFLAGS		+= -g -fPIC -I $(INCLUDEDIR)
+ OPT_FLAGS	:= -O1
+-LDFLAGS		:= -lm -lrt -pthread -shared -Wl,-soname,$(SONAME)
++override LDFLAGS		+= -lm -lrt -pthread -shared -soname $(SONAME)
+ 
+ # different compile flags for math libs
+ MATH_OPT_FLAGS	:= -O3 -ffast-math -ftree-vectorize
+@@ -44,7 +44,7 @@
+ # symlink only for local examples compilation, not for install
+ $(TARGET): $(OBJECTS)
+ 	@mkdir -p $(LIBDIR)
+-	@$(LINKER) -o $(TARGET) $(OBJECTS) $(LDFLAGS)
++	@$(LD) -o $(TARGET) $(OBJECTS) $(LDFLAGS)
+ 	@ln -sf $(FULLNAME) $(LIBDIR)/$(SONAME)
+ 	@echo "Done making $(TARGET)"
+ 

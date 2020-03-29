@@ -1,0 +1,33 @@
+#!/bin/sh
+
+VERB="$1"
+shift
+
+PIN=ocp:E4_4_pinmux
+CONFIG=pruecapin_pu
+
+#----------------------------------------------------------
+case "$VERB" in
+  start)
+    echo "Configuring E4 pin4 for PRU..."
+    echo ${CONFIG} >/sys/devices/platform/ocp/${PIN}/state
+    echo "OK"
+    ;;
+
+  stop)
+    echo "Restoring E4 pin4 default configuration..."
+    echo default >/sys/devices/platform/ocp/${PIN}/state
+    echo "OK"
+    ;;
+
+  restart)
+    $0 stop
+    sleep 1
+    $0 start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+esac
+
+exit 0

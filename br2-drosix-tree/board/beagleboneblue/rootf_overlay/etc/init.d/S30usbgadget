@@ -1,0 +1,63 @@
+#!/bin/sh
+
+# Exit immediately if a command exits with a non-zero exit status
+# set -e
+
+GADGET_DIR=/config/usb_gadget/g1
+OLDPWD=$(pwd)
+
+VERB="$1"
+shift
+
+case "$VERB" in
+  start)
+    #echo -n "Starting USB gadget: "
+    echo "Starting USB gadget..."
+    # No more needed with 4.19-rt from beagleboard...
+    #modprobe cppi41
+    #modprobe musb-am335x
+    #modprobe musb-dsps
+    #modprobe phy-am335x
+    modprobe libcomposite
+
+    if ! [ -d /config ]; then
+      echo "/config directory does not exist, creating"
+      mkdir /config
+    fi
+
+    mount -t configfs none /config
+    mkdir ${GADGET_DIR}
+    cd ${GADGET_DIR}
+    echo "0x05e8" > idVendor
+    echo "0xa4a1" > idProduct
+    mkdir strings/0x409
+    echo "serialnumber" > strings/0x409/serialnumber
+    echo "manufacturer" > strings/0x409/manufacturer
+    echo "ECM Gadget" > strings/0x409/product
+    mkdir functions/ecm.usb0
+    mkdir configs/c.1
+    mkdir configs/c.1/strings/0x409
+    echo Conf 1 > configs/c.1/strings/0x409/configuration
+    echo 120 > configs/c.1/MaxPower
+    echo "06:32:9b:a9:9d:a5" > functions/ecm.usb0/host_addr
+    ln -s functions/ecm.usb0 configs/c.1
+    echo musb-hdrc.0 > UDC
+    cd ${OLDPWD}
+    echo "OK"
+    ;;
+  stop)
+    echo -n "Stopping USB gadget: "
+    # TBD!!!
+    echo "OK"
+        ;;
+  restart)
+    $0 stop
+    sleep 3
+    $0 start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+esac
+
+exit 0
