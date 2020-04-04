@@ -1,1 +1,0 @@
-source "$BR2_EXTERNAL_DrosixOS_PATH/package/librobotcontrol/Config.in"
