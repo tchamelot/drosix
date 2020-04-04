@@ -1,0 +1,18 @@
+[package]
+name = "drone"
+version = "0.1.0"
+authors = ["Thomas Chamelot <chamelot.thomas@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+linux-embedded-hal = "0.3"
+mpu9250 = {path = "../mpu9250", features = ["i2c"] }
+prusst = "1.0.0"
+
+[[bin]]
+name = "esc"
+path = "src/esc.rs"
+
+[[bin]]
+name = "mpu9250"
+path = "src/mpu.rs"
