@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 linux-embedded-hal = "0.3"
-mpu9250 = {path = "../mpu9250", features = ["i2c"] }
+mpu9250 = {path = "../mpu9250", features = ["i2c", "dmp"] }
 prusst = "1.0.0"
 
 [[bin]]
