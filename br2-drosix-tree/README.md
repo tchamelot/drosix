@@ -23,3 +23,8 @@ Beaglebone Blue.
    which correspond to an Ethernet over USB interface. Configure it with the 
    address 192.168.7.1/24. Then you should be able to connect to the beaglebone 
    with `ssh root@192.168.7.2` and the password `toor`
+
+## Warning
+
+This image does not offer any security as the private key 
+which allows to connect as root on the Beagleblone is public in `.cargo`.

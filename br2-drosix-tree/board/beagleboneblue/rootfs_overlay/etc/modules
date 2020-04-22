@@ -1,0 +1,10 @@
+# This file contains the module to dynamically load at startup
+
+# PRU related module
+uio
+uio_pdrv_genirq
+uio_pruss
+
+# WIFI related module
+wlcore_sdio
+wl18xx
