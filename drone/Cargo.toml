@@ -7,7 +7,13 @@ edition = "2018"
 [dependencies]
 linux-embedded-hal = "0.3"
 mpu9250 = {path = "../mpu9250", features = ["i2c", "dmp"] }
+message = {path = "../message" }
 prusst = "1.0.0"
+warp = "0.2"
+webrtc-unreliable = { git = "https://github.com/tchamelot/webrtc-unreliable.git" }
+tokio = { version = "0.2", features = ["macros", "sync"] }
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
+bytes = "0.5"
 
 [[bin]]
 name = "esc"
@@ -16,3 +22,11 @@ path = "src/esc.rs"
 [[bin]]
 name = "mpu9250"
 path = "src/mpu.rs"
+
+[[bin]]
+name = "drone"
+path = "src/main.rs"
+
+[features]
+default = []
+mock = []

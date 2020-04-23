@@ -1,5 +1,7 @@
 [alias]
 test-binding = "test --target x86_64-unknown-linux-gnu"
+build-mock = "build --features=mock --target x86_64-unknown-linux-gnu  --bin=drone"
+run-mock = "run --features=mock --target x86_64-unknown-linux-gnu --bin=drone"
 
 [build]
 target = "armv7-unknown-linux-gnueabihf"

@@ -3,4 +3,6 @@
 members = [
     "drone",
     "mpu9250",
+    "webapp",
+    "message",
 ]
