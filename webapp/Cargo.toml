@@ -1,0 +1,51 @@
+[package]
+name = "drosix-webapp"
+version = "0.1.0"
+authors = ["Thomas Chamelot <chamelot.thomas@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+anyhow = "1.0"
+log = "0.4"
+strum = "0.17"
+strum_macros = "0.17"
+serde = "1"
+serde_derive = "1"
+web_logger = "0.2"
+js-sys = "0.3.37"
+yew = { version = "0.13", features = ["web_sys"] }
+plotters = "0.2.12"
+circular-queue = "0.2.4"
+wasm-bindgen-futures = "0.4.10"
+message = {path = "../message" }
+
+# `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
+# compared to the default allocator's ~10K. It is slower than the default
+# allocator, however.
+wee_alloc = { version = "0.4.4", optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[dependencies.web-sys]
+version = "0.3.4"
+features = [
+  'EventSource',
+  'HtmlCanvasElement',
+  'RtcPeerConnection',
+  'RtcDataChannel',
+  'RtcDataChannelInit',
+  'RtcPeerConnection',
+  'RtcSessionDescription',
+  'RtcSessionDescriptionInit',
+  'RtcIceCandidate',
+]
+
+[dependencies.wasm-bindgen]
+version = "0.2.58"
+features = [
+  'nightly',
+]

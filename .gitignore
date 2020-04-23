@@ -1,3 +1,6 @@
 **/target
 **/*.rs.bk
 Cargo.lock
+webapp/node_modules
+webapp/dist
+webapp/pkg
