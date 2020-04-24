@@ -21,6 +21,7 @@ plotters = "0.2.12"
 circular-queue = "0.2.4"
 wasm-bindgen-futures = "0.4.10"
 message = {path = "../message" }
+gloo = "0.2.1"
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
 # compared to the default allocator's ~10K. It is slower than the default
@@ -33,15 +34,12 @@ wasm-bindgen-test = "0.3"
 [dependencies.web-sys]
 version = "0.3.4"
 features = [
-  'EventSource',
   'HtmlCanvasElement',
-  'RtcPeerConnection',
   'RtcDataChannel',
-  'RtcDataChannelInit',
-  'RtcPeerConnection',
-  'RtcSessionDescription',
-  'RtcSessionDescriptionInit',
-  'RtcIceCandidate',
+  'MouseEvent',
+  'TouchEvent',
+  'TouchList',
+  'Touch',
 ]
 
 [dependencies.wasm-bindgen]

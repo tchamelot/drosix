@@ -93,6 +93,7 @@ impl Agent for DrosixAgent {
     }
 
     fn connected(&mut self, id: HandlerId) {
+        log::info!("connected {:?}", id);
         self.subscribers.insert(id);
     }
 

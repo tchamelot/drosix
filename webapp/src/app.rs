@@ -1,11 +1,11 @@
 use circular_queue::CircularQueue;
 use std::cell::RefCell;
 use std::rc::Rc;
-use yew::agent::Bridged;
-use yew::{html, services, Bridge, Component, ComponentLink, Html, ShouldRender};
+use yew::agent::{AgentScope, Bridged};
+use yew::{html, services, Bridge, Component, ComponentLink, Html, NodeRef, ShouldRender};
 
 use crate::agents::drosix::{Action, DrosixAgent};
-use crate::components::chart;
+use crate::components::{chart, joystick};
 
 pub type WeakComponentLink<COMP> = Rc<RefCell<Option<ComponentLink<COMP>>>>;
 
@@ -106,8 +106,9 @@ impl Component for App {
     }
 
     fn view(&self) -> Html {
+        let node = NodeRef::default();
         html! {
-            <div class="main">
+            <div ref=node.clone() class="main">
                 <chart::Chart
                     width={self.dimension.as_ref().and_then(|d| Some(d.width * 60/100))}
                     height={self.dimension.as_ref().and_then(|d| Some(d.height * 60/100))}
@@ -115,6 +116,7 @@ impl Component for App {
                     labels=Some("alpha beta gamma")
                     link=&self.chart_link />
                 { self.view_subscribe() }
+                <joystick::Joystick parent=node.clone() agent=AgentScope::<DrosixAgent>new()/>
             </div>
         }
     }
