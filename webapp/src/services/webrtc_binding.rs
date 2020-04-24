@@ -33,9 +33,12 @@ pub enum WebrtcStatus {
 pub struct WebrtcTask {
     handle: WebrtcBinding,
     channel: RtcDataChannel,
-    _onmessage: Closure<dyn FnMut(MessageEvent) -> ()>,
-    _onopen: Closure<dyn FnMut(MessageEvent) -> ()>,
-    _onerror: Closure<dyn FnMut(MessageEvent) -> ()>,
+    #[allow(dead_code)]
+    onmessage: Closure<dyn FnMut(MessageEvent) -> ()>,
+    #[allow(dead_code)]
+    onopen: Closure<dyn FnMut(MessageEvent) -> ()>,
+    #[allow(dead_code)]
+    onerror: Closure<dyn FnMut(MessageEvent) -> ()>,
 }
 
 pub struct WebrtcService {
@@ -52,34 +55,34 @@ impl WebrtcService {
     {
         let handle = WebrtcBinding::new();
 
-        let _onmessage = Closure::wrap(Box::new(move |event: MessageEvent| {
+        let onmessage = Closure::wrap(Box::new(move |event: MessageEvent| {
             let data = js_sys::Uint8Array::new(&event.data()).to_vec();
             let out = OUT::from(Ok(data));
             cb.emit(out);
         }) as Box<dyn FnMut(MessageEvent)>);
 
         let open_cb = signal_cb.clone();
-        let _onopen = Closure::wrap(Box::new(move |_event: MessageEvent| {
+        let onopen = Closure::wrap(Box::new(move |_event: MessageEvent| {
             open_cb.emit(WebrtcStatus::Opened);
         }) as Box<dyn FnMut(MessageEvent)>);
 
         let error_cb = signal_cb.clone();
-        let _onerror = Closure::wrap(Box::new(move |_event: MessageEvent| {
+        let onerror = Closure::wrap(Box::new(move |_event: MessageEvent| {
             log::info!("channel error");
             error_cb.emit(WebrtcStatus::Error);
         }) as Box<dyn FnMut(MessageEvent)>);
 
         let channel = handle.channel();
-        channel.set_onmessage(Some(_onmessage.as_ref().unchecked_ref()));
-        channel.set_onopen(Some(_onopen.as_ref().unchecked_ref()));
-        channel.set_onerror(Some(_onerror.as_ref().unchecked_ref()));
+        channel.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
+        channel.set_onopen(Some(onopen.as_ref().unchecked_ref()));
+        channel.set_onerror(Some(onerror.as_ref().unchecked_ref()));
 
         let prom = handle.connect(url);
         spawn_local(async move {
             let _ = JsFuture::from(prom).await;
         });
 
-        WebrtcTask {handle, channel, _onmessage, _onopen, _onerror}
+        WebrtcTask {handle, channel, onmessage, onopen, onerror}
     }
 }
 

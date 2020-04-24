@@ -1,46 +1,31 @@
 use circular_queue::CircularQueue;
+use futures::future::ready;
+use futures_signals::signal::SignalExt;
 use std::cell::RefCell;
 use std::rc::Rc;
-use yew::agent::{AgentScope, Bridged};
-use yew::{html, services, Bridge, Component, ComponentLink, Html, NodeRef, ShouldRender};
+use wasm_bindgen_futures::spawn_local;
+use yew::agent::Bridged;
+use yew::services::resize::WindowDimensions;
+use yew::{html, Bridge, Component, ComponentLink, Html, NodeRef, ShouldRender};
 
-use crate::agents::drosix::{Action, DrosixAgent};
+use crate::agents::store::*;
 use crate::components::{chart, joystick};
-
-pub type WeakComponentLink<COMP> = Rc<RefCell<Option<ComponentLink<COMP>>>>;
-
-pub struct Measure {
-    pub data: Vec<f32>,
-}
-
-impl From<yew::format::Text> for Measure {
-    fn from(msg: yew::format::Text) -> Self {
-        match msg {
-            Ok(text) => Measure {
-                data: text
-                    .lines()
-                    .map(|line| line.parse::<f32>().unwrap_or(0.0))
-                    .collect(),
-            },
-            Err(_) => Measure { data: Vec::new() },
-        }
-    }
-}
 
 pub struct App {
     link: ComponentLink<Self>,
-    _evt_resize: services::resize::ResizeTask,
-    dimension: Option<services::resize::WindowDimensions>,
-    chart_link: WeakComponentLink<chart::Chart>,
+    dimension: Option<(i32, i32)>,
+    chart_cb: chart::ChartCallback,
     data: Vec<Rc<CircularQueue<f32>>>,
-    drosix: Box<dyn Bridge<DrosixAgent>>,
+    store: Box<dyn Bridge<Store>>,
+    state: Option<ArcState>,
     subscribed: bool,
 }
 
 pub enum Msg {
-    Resize(services::resize::WindowDimensions),
+    Resize((i32, i32)),
     Subscribe,
     Drosix([f32; 3]),
+    FromStore(StoreOutput),
 }
 
 impl Component for App {
@@ -48,23 +33,27 @@ impl Component for App {
     type Properties = ();
 
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let resize_cb = link.callback(|size: services::resize::WindowDimensions| Msg::Resize(size));
-        let evt_resize = services::ResizeService::new().register(resize_cb);
-        let drosix_cb = link.callback(|data| Msg::Drosix(data));
-        let drosix = DrosixAgent::bridge(drosix_cb);
+        let store = Store::bridge(link.callback(|d| Msg::FromStore(d)));
         App {
             link: link,
-            _evt_resize: evt_resize,
-            chart_link: WeakComponentLink::<chart::Chart>::default(),
+            chart_cb: chart::ChartCallback::default(),
             dimension: None,
             data: Vec::new(),
-            drosix: drosix,
+            store: store,
+            state: None,
             subscribed: false,
         }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
+            Msg::FromStore(s) => match s {
+                StoreOutput::StateInstance(state) => {
+                    self.state = Some(state);
+                    self.register_state_handlers();
+                    false
+                }
+            },
             Msg::Drosix(data) => {
                 if data.len() > self.data.len() {
                     for _ in 0..data.len() - self.data.len() {
@@ -77,8 +66,9 @@ impl Component for App {
                         measure.push(*val);
                     }
                 }
-                let link = self.chart_link.borrow().clone().unwrap();
-                link.callback(|data: Vec<Rc<CircularQueue<f32>>>| chart::Msg::NewData(data))
+                self.chart_cb
+                    .as_ref()
+                    .borrow()
                     .emit(self.data.iter().map(|x| x.clone()).collect());
                 false
             }
@@ -88,9 +78,9 @@ impl Component for App {
             }
             Msg::Subscribe => {
                 if self.subscribed {
-                    self.drosix.send(Action::Unsubscribe);
+                    self.store.send(StoreInput::Unsubscribe);
                 } else {
-                    self.drosix.send(Action::Subscribe);
+                    self.store.send(StoreInput::Subscribe);
                 }
                 self.subscribed = !self.subscribed;
                 true
@@ -99,9 +89,8 @@ impl Component for App {
     }
 
     fn mounted(&mut self) -> ShouldRender {
-        self.dimension = Some(services::resize::WindowDimensions::get_dimensions(
-            &web_sys::window().unwrap(),
-        ));
+        let size = WindowDimensions::get_dimensions(&web_sys::window().unwrap());
+        self.dimension = Some((size.width, size.height));
         true
     }
 
@@ -110,13 +99,13 @@ impl Component for App {
         html! {
             <div ref=node.clone() class="main">
                 <chart::Chart
-                    width={self.dimension.as_ref().and_then(|d| Some(d.width * 60/100))}
-                    height={self.dimension.as_ref().and_then(|d| Some(d.height * 60/100))}
+                    width={self.dimension.as_ref().and_then(|size| Some(size.0 * 60/100))}
+                    height={self.dimension.as_ref().and_then(|size| Some(size.1 * 60/100))}
                     style="canvas"
                     labels=Some("alpha beta gamma")
-                    link=&self.chart_link />
+                    cb=&self.chart_cb/>
                 { self.view_subscribe() }
-                <joystick::Joystick parent=node.clone() agent=AgentScope::<DrosixAgent>new()/>
+                <joystick::Joystick parent=node.clone()/>
             </div>
         }
     }
@@ -133,5 +122,25 @@ impl App {
             <button class="button" type="button" disabled=false
                 onclick=&self.link.callback(|_| Msg::Subscribe)>{action}</button>
         }
+    }
+
+    fn register_state_handlers(&self) {
+        let state = self.state.as_ref().unwrap();
+
+        // Listen for new measures
+        let callback = self.link.callback(|data| Msg::Drosix(data));
+        let handler = state.measures.signal_cloned().for_each(move |u| {
+            callback.emit(u);
+            ready(())
+        });
+        spawn_local(handler);
+
+        // Listen for resize event
+        let callback = self.link.callback(|size| Msg::Resize(size));
+        let handler = state.size.signal_cloned().for_each(move |u| {
+            callback.emit(u);
+            ready(())
+        });
+        spawn_local(handler);
     }
 }

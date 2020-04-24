@@ -6,6 +6,7 @@ use yew::Callback;
 pub struct TouchService {}
 
 pub struct TouchTask {
+    #[allow(dead_code)]
     listeners: [EventListener; 3],
 }
 

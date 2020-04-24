@@ -6,6 +6,7 @@ use yew::prelude::*;
 pub struct Joystick {
     link: ComponentLink<Self>,
     parent: NodeRef,
+    #[allow(dead_code)]
     task: TouchTask,
     active: Option<i32>,
     position: (i32, i32),

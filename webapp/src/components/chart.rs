@@ -1,6 +1,6 @@
-use crate::app::WeakComponentLink;
 use circular_queue::CircularQueue;
 use plotters::prelude::*;
+use std::cell::RefCell;
 use std::f32;
 use std::rc::Rc;
 use web_sys::HtmlCanvasElement;
@@ -29,6 +29,8 @@ impl Palette for NordTheme {
     ];
 }
 
+pub type ChartCallback = Rc<RefCell<Callback<Vec<Rc<CircularQueue<f32>>>>>>;
+
 pub struct Chart {
     root: Option<DrawingArea<CanvasBackend, plotters::coord::Shift>>,
     node_ref: NodeRef,
@@ -44,7 +46,6 @@ pub enum Msg {
 
 #[derive(Clone, Properties)]
 pub struct Props {
-    pub link: WeakComponentLink<Chart>,
     #[prop_or_default]
     pub width: Option<i32>,
     #[prop_or_default]
@@ -53,6 +54,8 @@ pub struct Props {
     pub style: String,
     #[prop_or_default]
     pub labels: Option<String>,
+    #[prop_or_default]
+    pub cb: ChartCallback,
 }
 
 impl Component for Chart {
@@ -60,7 +63,7 @@ impl Component for Chart {
     type Properties = Props;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        *props.link.borrow_mut() = Some(link);
+        *props.cb.borrow_mut() = link.callback(|data| Msg::NewData(data));
         Chart {
             root: None,
             node_ref: NodeRef::default(),
@@ -116,7 +119,7 @@ impl Component for Chart {
         let canvas = CanvasBackend::with_canvas_object(canvas).unwrap();
         self.root = Some(canvas.into_drawing_area());
         self.draw(vec![Vec::new().iter()]);
-        false
+        true
     }
 }
 

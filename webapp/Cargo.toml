@@ -12,14 +12,16 @@ anyhow = "1.0"
 log = "0.4"
 strum = "0.17"
 strum_macros = "0.17"
-serde = "1"
+serde = { version = "1", features = ["rc"] }
 serde_derive = "1"
 web_logger = "0.2"
 js-sys = "0.3.37"
-yew = { version = "0.13", features = ["web_sys"] }
+yew = { version = "0.14.3", features = ["web_sys"] }
 plotters = "0.2.12"
 circular-queue = "0.2.4"
 wasm-bindgen-futures = "0.4.10"
+futures-signals = "0.3.15"
+futures = "0.3.4"
 message = {path = "../message" }
 gloo = "0.2.1"
 
