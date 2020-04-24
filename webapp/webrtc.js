@@ -38,7 +38,7 @@ export class WebrtcBinding {
     }
 
     close() {
-        self._peer.close();
+        this._peer.close();
     }
 
     get channel() {

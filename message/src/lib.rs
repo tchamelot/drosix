@@ -8,7 +8,7 @@ pub enum DrosixMessage {
     ClientHello,
     ServerHello(u32),
     Measure([f64; 3]),
-    Control([f64; 3]),
+    Control([f64; 4]),
     Error,
 }
 

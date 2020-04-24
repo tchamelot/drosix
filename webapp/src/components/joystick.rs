@@ -6,6 +6,7 @@ use yew::prelude::*;
 pub struct Joystick {
     link: ComponentLink<Self>,
     parent: NodeRef,
+    onmove: Option<Callback<(f64, f64)>>,
     #[allow(dead_code)]
     task: TouchTask,
     active: Option<i32>,
@@ -21,6 +22,8 @@ pub enum Msg {
 #[derive(Clone, Properties)]
 pub struct Props {
     pub parent: NodeRef,
+    #[prop_or_default]
+    pub onmove: Option<Callback<(f64, f64)>>,
 }
 
 impl Component for Joystick {
@@ -34,6 +37,7 @@ impl Component for Joystick {
         Self {
             link: link,
             parent: props.parent,
+            onmove: props.onmove,
             task: task,
             active: None,
             position: (0, 0),
@@ -49,7 +53,7 @@ impl Component for Joystick {
                     self.scale = self.scale.or(self
                         .parent
                         .cast::<HtmlElement>()
-                        .map(|el| f64::from(el.offset_width()) / 1000.0));
+                        .map(|el| f64::from(el.offset_width()) / 500.0));
                     let touch = event.changed_touches().get(0).unwrap();
                     self.active = Some(touch.identifier());
                     let x = touch.client_x();
@@ -95,6 +99,9 @@ impl Component for Joystick {
                             (dx, dy)
                         };
                         self.delta = (dx, dy);
+                        if let Some(cb) = self.onmove.as_ref() {
+                            cb.emit(self.delta);
+                        }
                         true
                     } else {
                         false

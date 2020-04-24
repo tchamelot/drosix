@@ -15,17 +15,47 @@ body {
     height: 100%;
     width: 100%;
     display: flex;
-    flex-direction: column;
     background-color: #2e3440;
+}
+
+.column {
+    flex-direction: column;
+}
+
+.row {
+    flex-direction: row;
+}
+
+.nav {
+    display: flex;
+    width: 100%;
+    background-color: #3b4252;
+}
+
+.nav-item {
+    padding: 0.1% 0.5%;
+    margin: 0 0.5%;
+    border: 0;
+    height: 100%;
+    text-align: center;
+    vertical-align: center;
+    background-color: #3b4252;
+    color: #d8dee9;
+    font-size: 2vh;
+}
+.nav-item:hover {
+    background-color: #434c5e;
+    border-radius: 1vh;
 }
 
 .button {
     background-color: #2e3440;
-    border: 0.1em solid #4c566a;
-    border-radius: 0.25em;
+    border: 0.1vw solid #4c566a;
+    border-radius: 1vh;
     color: #d8dee9;
-    padding: 0.35em 0.7em;
+    padding: 0.3% 0.7%;
     text-align: center;
+    font-size: 2vw;
     vertical-align: center;
     text-decoration: none;
     display: inline-block;
@@ -42,20 +72,28 @@ body {
     margin: auto;
     display: block;
 }
+
+.joystick_containter {
+    padding: 0;
+    height: 100%;
+    width: 50%;
+    display: flex;
+    background-color: #2e3440;
+}
+
 .joystick_base {
-    position: absolute;
+    position: relative;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    height: auto;
-    width: 25%;
-    padding-top: 25%;
+    width: 20vw;
+    height: 20vw;
     border-radius: 50%;
     background-color: grey;
     z-index: 998;
 }
 .joystick_top {
-    position: absolute;
+    position: relative;
     transform: translate(-50%, -50%);
     height: 50%;
     width: 50%;

@@ -7,6 +7,7 @@ use std::sync::Arc;
 use wasm_bindgen_futures::spawn_local;
 use yew::agent::*;
 use yew::format::Nothing;
+use yew::services::dialog::DialogService;
 use yew::services::fetch::*;
 use yew::services::resize::*;
 use yew::Callback;
@@ -17,7 +18,7 @@ use message::DrosixMessage;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct State {
     pub measures: Mutable<[f32; 3]>,
-    pub control: Mutable<f64>,
+    pub control: Mutable<[f64; 4]>,
     pub size: Mutable<(i32, i32)>,
 }
 
@@ -26,7 +27,7 @@ impl Default for State {
         let size = WindowDimensions::get_dimensions(&yew::utils::window());
         State {
             measures: Mutable::new([0.0; 3]),
-            control: Mutable::new(0.0),
+            control: Mutable::new([0.0; 4]),
             size: Mutable::new((size.width, size.height)),
         }
     }
@@ -59,7 +60,7 @@ type TaskId = Rc<String>;
 type TaskBundle = (Rc<String>, bool);
 
 pub enum Msg {
-    Control(f64),
+    Control([f64; 4]),
     WebrtcStatus(WebrtcStatus),
     WebrtcReceived(DrosixMessage),
     ApiStatus(TaskBundle),
@@ -129,12 +130,13 @@ impl Agent for Store {
             },
             Msg::ApiStatus((task_id, status)) => {
                 if !status {
+                    DialogService::new().alert("Error while accessing api");
                     log::info!("Error while accessig api")
                 }
                 self.api.remove_entry(task_id.as_ref());
             }
             Msg::Control(val) => {
-                self.webrtc.send(DrosixMessage::Control([val, val, val]));
+                self.webrtc.send(DrosixMessage::Control(val));
             }
             Msg::Size(size) => {
                 self.state.as_ref().size.set(size);
@@ -163,7 +165,8 @@ impl Store {
     fn subscribe(&mut self) {
         if self.webrtc_id.is_some() {
             let request = Request::put(format!(
-                "http://chartreuse:8080/api/measure/{}",
+                //"http://chartreuse:8080/api/measure/{}",
+                "/api/measure/{}",
                 self.webrtc_id.unwrap()
             ))
             .body(Nothing)
@@ -180,12 +183,9 @@ impl Store {
 
     fn unsubscribe(&mut self) {
         if self.webrtc_id.is_some() {
-            let request = Request::delete(format!(
-                "http://chartreuse:8080/api/measure/{}",
-                self.webrtc_id.unwrap()
-            ))
-            .body(Nothing)
-            .unwrap();
+            let request = Request::delete(format!("/api/measure/{}", self.webrtc_id.unwrap()))
+                .body(Nothing)
+                .unwrap();
             let task_name = Rc::new(String::from("unsubscriber"));
             if let Ok(task) =
                 FetchService::new().fetch(request, self.api_handler(task_name.clone()))
