@@ -5,35 +5,11 @@
 #include <am335x/pru_intc.h>
 #include <am335x/pru_ecap.h>
 #include "util.h"
+#include "drosix.h"
 #pragma RESET_MISRA("all")
 
-#define PERIOD_NS 10000000U
-
-struct pid_parameter_t {
-    int32_t kp;
-    int32_t ki;
-    int32_t kd;
-};
-
-struct pid_t {
-    struct pid_parameter_t _parameter;
-    int32_t error;
-    int32_t input[2];
-};
-
-struct controller_t {
-    volatile int32_t inputs;
-    volatile int32_t outputs;
-    volatile struct pid_parameter_t parameter;
-    volatile uint32_t pru0_cycle;
-    volatile uint32_t pru0_stall;
-};
-
-#pragma DATA_SECTION(controller, ".sdata")
-volatile far struct controller_t controller;
-
 void main(void);
-int32_t run_pid(struct pid_t* pid);
+uint32_t run_pid(struct pid_t* pid);
 void configure_timer(void);
 
 
@@ -48,9 +24,9 @@ void main(void) {
     CT_CFG.SYSCFG_bit.STANDBY_INIT = 0U;    /* enable OCP master port */
 
     /* wait motor to be ready */
-    while(check_event0() != MST_4) {}
+    while(check_event0() != EVT_MOTOR_STATUS) {}
     /* send_event(MST_15); */
-    send_event(MST_3);
+    send_event(EVT_CONTROLLER_STATUS);
 
     /* store pid coef in local memory */
     pids._parameter = controller.parameter;
@@ -60,22 +36,22 @@ void main(void) {
     while(run == 1U) {
         switch(check_event0()) {
         /* PID */
-        case ECAP_TIMER:
+        case EVT_PID_STEP:
             CT_ECAP.ECCLR = 0xffU;
             controller.outputs = run_pid(&pids);
             send_event(MST_5);
             /* send_event(MST_15); */
             break;
         /* STOP */
-        case MST_1:
-            send_event(MST_0);
+        case EVT_CONTROLLER_STOP:
+            send_event(EVT_MOTOR_STOP);
             break;
         /* Motor stop or error */
-        case MST_4:
+        case EVT_MOTOR_STATUS:
             run = 0U;
             break;
         /* New data */
-        case MST_2:
+        case EVT_PID_NEW_DATA:
             /* handle new data */
             pids.input[0] = controller.inputs;
             break;
@@ -84,17 +60,17 @@ void main(void) {
             break;
         /* Unexpected interrput */
         default:
-            send_event(MST_0);
+            send_event(EVT_MOTOR_STOP);
             break;
         }
     }
 
-    send_event(MST_3);
+    send_event(EVT_CONTROLLER_STATUS);
 
     __halt();
 }
 
-int32_t run_pid(struct pid_t* pid) {
+uint32_t run_pid(struct pid_t* pid) {
     int32_t delta, result;
 
     pid->error += pid->input[0];
@@ -104,14 +80,20 @@ int32_t run_pid(struct pid_t* pid) {
     result += (pid->_parameter.kd * delta);
 
     /* TODO handle min and max */
+    if(result >= 399999) {
+        result = 399999;
+    }
+    if(result <= 179999) {
+        result = 179999;
+    }
 
-    return result;
+    return (uint32_t)result;
 }
 
 void configure_timer(void) {
     CT_INTC.CMR3_bit.CH_MAP_15 = 0U;                /* Map S15 to channel 0 */
     CT_INTC.EISR = ECAP_TIMER;                      /* Enable S15 */
-    CT_ECAP.CAP3 = (uint32_t)PERIOD_NS / 5U - 1U;   /* Set the sampling period */
+    CT_ECAP.CAP3 = (uint32_t)PID_PERIOD / 5U - 1U;  /* Set the sampling period */
     CT_ECAP.ECCTL2 = ECAP_APWM_MODE | ECAP_CTRRUN;  /* APWM mode and counter free-running */
     CT_ECAP.TSCTR = 0U;                             /* Reset the counter */
     CT_ECAP.ECEINT = ECAP_INT_CMPEQ;                /* Enable intterupt on CAP3 == TSCTR */

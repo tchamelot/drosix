@@ -5,6 +5,7 @@
 #include <am335x/pru_intc.h>
 #include <am335x/pru_iep.h>
 #include "util.h"
+#include "drosix.h"
 #pragma RESET_MISRA("all")
 
 #define PERIOD_NS 20000000U
@@ -14,10 +15,11 @@ void configure_timer(void);
 
 void main(void) {
     uint8_t run = 1U;
+    uint32_t duty_cycles = 
 
     CT_CFG.SYSCFG_bit.STANDBY_INIT = 0U;    /* enable OCP master port */
 
-    send_event(MST_4);
+    send_event(EVT_MOTOR_STATUS);
 
     __delay_cycles(5U);
 
@@ -25,18 +27,20 @@ void main(void) {
 
     while(run == 1U) {
         switch(check_event1()) {
-        case IEP_TIMER:
+        case EVT_PWM_STEP:
 			CT_IEP.TMR_CMP_STS = 0x1U;
             send_event(MST_15);
+            set_pins(ALL_MOTORS);
             break;
         /* STOP */
-        case MST_0:
+        case EVT_MOTOR_STOP:
             run = 0U;
             break;
         /* New data */
-        case MST_5:
+        case EVT_PID_OUTPUT:
             /* send_event(MST_15); */
             /* handle new data */
+            duty_cycles = controller.outputs;
             break;
         /* No event yet */
         case None:
@@ -48,9 +52,13 @@ void main(void) {
         }
 
         /* process pwms */
+        if(CT_IEP.TMR_CNT >= duty_cycles) {
+            clear_pins(ALL_MOTORS);
+        }
     }
 
-    send_event(MST_4);
+    clear_pins(ALL_MOTORS);
+    send_event(EVT_MOTOR_STATUS);
 
     __halt();
 }

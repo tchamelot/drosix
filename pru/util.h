@@ -1,5 +1,5 @@
-#ifndef __CONTROLER_H__
-#define __CONTROLER_H__
+#ifndef __CONTROLLER_H__
+#define __CONTROLLER_H__
 #pragma RESET_MISRA("all")
 #pragma CHECK_MISRA("-8.5")
 
@@ -66,9 +66,28 @@ inline enum system_event_t check_event1(void) {
 
     return active_event1;
 }
+
+/* PRU GPO abstraction */
+#define GPO_4 0x10U
+#define GPO_5 0x20U
+#define GPO_6 0x40U
+#define GPO_7 0x80U
+
+inline void set_pins(uint32_t pins);
+inline void clear_pins(uint32_t pins);
+
+inline void set_pins(uint32_t pins) {
+    __R30 |= pins;
+}
+
+inline void clear_pins(uint32_t pins) {
+    __R30 &= ~((uint32_t)pins);
+}
+
 /* PRU ECAP abstraction */
 #define ECAP_APWM_MODE  ((uint16_t)0x200U)
 #define ECAP_CTRRUN     ((uint16_t)0x10U)
 #define ECAP_INT_CMPEQ  ((uint16_t)0x80U)
 
+#pragma CHECK_MISRA("none")
 #endif
