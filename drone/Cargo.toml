@@ -5,27 +5,24 @@ authors = ["Thomas Chamelot <chamelot.thomas@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-linux-embedded-hal = "0.3"
-mpu9250 = {path = "../mpu9250", features = ["i2c", "dmp"] }
-message = {path = "../message" }
-prusst = "1.0.0"
-warp = "0.2"
-webrtc-unreliable = { git = "https://github.com/tchamelot/webrtc-unreliable.git" }
-tokio = { version = "0.2", features = ["macros", "sync"] }
-futures = { version = "0.3", default-features = false, features = ["alloc"] }
-bytes = "0.5"
+# Flight controller
+hal                 = { version = "0.3", package = "linux-embedded-hal" }
+mio                 = { version = "0.7", features = ["os-poll", "os-util"] } 
+prusst              = { git = "https://github.com/tchamelot/prusst" }
+gpio-cdev           = { git = "https://github.com/tchamelot/gpio-cdev" }
 
-[[bin]]
-name = "esc"
-path = "src/esc.rs"
+# Server
+tokio               = { version = "0.2", features = ["macros", "sync"] }
+futures             = { version = "0.3", features = ["alloc"], default-features = false }
+warp                = "0.2"
+bytes               = "0.5"
+webrtc-unreliable   = { git = "https://github.com/tchamelot/webrtc-unreliable.git" }
+message             = { path = "../message" }
 
-[[bin]]
-name = "mpu9250"
-path = "src/mpu.rs"
-
-[[bin]]
-name = "drone"
-path = "src/main.rs"
+[dependencies.mpu9250]
+git         = "https://github.com/tchamelot/mpu9250"
+branch      = "drosix"
+features    = ["i2c", "dmp_quat6", "dmp_accel", "dmp_motion"]
 
 [features]
 default = []
