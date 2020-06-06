@@ -33,7 +33,7 @@ docker-interactive:
 %.obj: %.asm
 	@$(CC) $(ASFLAGS) -c $<
 
-%.obj: %.c
+%.obj: %.c drosix.h util.h
 	@$(CC) $(CFLAGS) -c $<
 
 clean:
