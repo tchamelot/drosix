@@ -10,13 +10,15 @@
 #define EVT_CONTROLLER_STATUS   (MST_3)
 #define EVT_MOTOR_STATUS        (MST_4)
 #define EVT_PID_OUTPUT          (MST_5)
+#define EVT_SET_ARMED           (MST_6)
+#define EVT_CLEAR_ARMED         (MST_7)
 #define EVT_DEBUG               (MST_15)
 #define EVT_PID_STEP            (ECAP_TIMER)
 #define EVT_PWM_STEP            (IEP_TIMER)
 
 /* Event periods (nano seconds) */
 #define PID_PERIOD 10000000U
-#define PWM_PERIOD 20000000U
+#define PWM_PERIOD 10000000U
 
 /* GPO mapping */
 
@@ -40,9 +42,9 @@ struct pid_t {
 };
 
 struct controller_t {
-    volatile int32_t inputs;
-    volatile uint32_t outputs;
-    volatile struct pid_parameter_t parameter;
+    volatile int32_t inputs[7];
+    volatile uint32_t outputs[4];
+    volatile struct pid_parameter_t parameter[7];
     volatile uint32_t pru0_cycle;
     volatile uint32_t pru0_stall;
 };
