@@ -1,5 +1,3 @@
-extern crate prusst;
-
 use prusst::util::VolatileCell;
 use prusst::{Evtout, IntcConfig, Pruss, Sysevt};
 
@@ -39,12 +37,10 @@ fn main() {
     };
 
     println!("Allocate ctrl {:?}", pruss.dram1.begin());
-    let servo = pruss.dram1.alloc(Servo {
-        len_ch1: VolatileCell::new(0),
-        len_ch2: VolatileCell::new(0),
-        len_ch3: VolatileCell::new(0),
-        len_ch4: VolatileCell::new(0),
-    });
+    let servo = pruss.dram1.alloc(Servo { len_ch1: VolatileCell::new(0),
+                                          len_ch2: VolatileCell::new(0),
+                                          len_ch3: VolatileCell::new(0),
+                                          len_ch4: VolatileCell::new(0) });
 
     let irq = pruss.intc.register_irq(Evtout::E0);
 
@@ -83,9 +79,7 @@ fn get_input(prompt: &str, min: f32, max: f32, stop: f32) -> u32 {
         io::stdout().flush().unwrap();
 
         let mut val = String::new();
-        io::stdin()
-            .read_line(&mut val)
-            .expect("failed to read input");
+        io::stdin().read_line(&mut val).expect("failed to read input");
 
         if let Ok(val) = val.trim().parse::<f32>() {
             if val >= min && val <= max {
