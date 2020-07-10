@@ -107,6 +107,12 @@ impl Component for Visualizer {
             </div>
         }
     }
+
+    fn destroy(&mut self) {
+        if self.subscribed {
+            self.store.send(StoreInput::Unsubscribe);
+        }
+    }
 }
 
 impl Visualizer {

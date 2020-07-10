@@ -39,6 +39,8 @@ pub type ArcState = Arc<State>;
 pub enum StoreInput {
     Subscribe,
     Unsubscribe,
+    TakeControl,
+    ReleaseControl,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -146,12 +148,10 @@ impl Agent for Store {
 
     fn handle_input(&mut self, msg: Self::Input, _id: HandlerId) {
         match msg {
-            StoreInput::Subscribe => {
-                self.subscribe();
-            }
-            StoreInput::Unsubscribe => {
-                self.unsubscribe();
-            }
+            StoreInput::Subscribe => self.subscribe(),
+            StoreInput::Unsubscribe => self.unsubscribe(),
+            StoreInput::TakeControl => self.take_control(),
+            StoreInput::ReleaseControl => self.release_control(),
         }
     }
 
@@ -187,6 +187,34 @@ impl Store {
                 .body(Nothing)
                 .unwrap();
             let task_name = Rc::new(String::from("unsubscriber"));
+            if let Ok(task) =
+                FetchService::new().fetch(request, self.api_handler(task_name.clone()))
+            {
+                self.api.insert(task_name, task);
+            }
+        }
+    }
+
+    fn take_control(&mut self) {
+        if self.webrtc_id.is_some() {
+            let request = Request::get(format!("/api/control/{}", self.webrtc_id.unwrap()))
+                .body(Nothing)
+                .unwrap();
+            let task_name = Rc::new(String::from("taker"));
+            if let Ok(task) =
+                FetchService::new().fetch(request, self.api_handler(task_name.clone()))
+            {
+                self.api.insert(task_name, task);
+            }
+        }
+    }
+
+    fn release_control(&mut self) {
+        if self.webrtc_id.is_some() {
+            let request = Request::put(format!("/api/control/{}", self.webrtc_id.unwrap()))
+                .body(Nothing)
+                .unwrap();
+            let task_name = Rc::new(String::from("realeaser"));
             if let Ok(task) =
                 FetchService::new().fetch(request, self.api_handler(task_name.clone()))
             {

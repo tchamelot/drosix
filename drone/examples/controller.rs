@@ -22,9 +22,11 @@ fn main() {
         .expect("Cannot register pru0 event in epoll");
 
     poll.registry()
-        .register(&mut SourceFd(&std::io::stdin().as_raw_fd()),
-                  STDIN,
-                  Interest::READABLE)
+        .register(
+            &mut SourceFd(&std::io::stdin().as_raw_fd()),
+            STDIN,
+            Interest::READABLE,
+        )
         .expect("Cannot register stdin event in epoll");
 
     controller.start().unwrap();

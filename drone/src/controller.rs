@@ -8,7 +8,7 @@ use std::fs::File;
 /// PID controller parameters
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-struct Pid {
+pub struct Pid {
     /// PID proportional gain
     pub kp: i32,
     /// PID integral gain
@@ -95,19 +95,28 @@ impl<'a> PruController<'a> {
         let mut pru = Pruss::new(&int_conf).context("Intanciating PRUSS")?;
 
         // Init PRU shared mem
-        let controller =
-            pru.dram2.alloc(Controller::default()) as *mut Controller;
+        let controller = pru.dram2.alloc(Controller::default());
+        // Use transmute to extend the lifetime. It is ok because pru has the
+        // lifetime 'a and the controller ref has the same lifetime.
+        // Moreover, the ref is not visible outside of the PruController
+        let shared_mem = unsafe { std::mem::transmute(controller) };
 
         let status_evt = pru.intc.register_irq(Evtout::E0);
         let debug_evt = pru.intc.register_irq(Evtout::E1);
 
         Ok(PruController {
             pru,
-            shared_mem: unsafe { &mut *(controller.clone()) },
+            shared_mem,
             status_evt,
             debug_evt,
             running: false,
         })
+    }
+
+    pub fn set_pid_configs(&mut self, pid_configs: [Pid; 7]) {
+        unsafe {
+            self.shared_mem.pid = std::mem::transmute(pid_configs);
+        }
     }
 
     /// Start the PRU (load and launch firmwares)
@@ -165,16 +174,17 @@ impl<'a> PruController<'a> {
         self.pru.intc.clear_sysevt(Sysevt::S31);
         self.pru.intc.enable_host(Evtout::E1);
         //dbg!(self.shared_mem.output);
-        dbg!(self.shared_mem.output[0].get());
+        dbg!(self.shared_mem.cycle.get());
+        dbg!(self.shared_mem.stall.get());
     }
 
     /// Send new values to the PID controller
     /// New values will be processed only if the motor are armed
     pub fn set_pid_inputs(&mut self, inputs: [i32; 4]) {
-        self.shared_mem.input[0].set(inputs[0]);
-        self.shared_mem.input[1].set(inputs[1]);
-        self.shared_mem.input[2].set(inputs[2]);
-        self.shared_mem.input[3].set(inputs[3]);
+        self.shared_mem.input[3].set(inputs[0]);
+        self.shared_mem.input[4].set(inputs[1]);
+        self.shared_mem.input[5].set(inputs[2]);
+        self.shared_mem.input[6].set(inputs[3]);
         self.pru.intc.send_sysevt(Sysevt::S18);
     }
 

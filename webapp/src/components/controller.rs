@@ -8,7 +8,6 @@ pub struct Controller {
     link: ComponentLink<Self>,
     store: Box<dyn Bridge<Store>>,
     state: Option<ArcState>,
-    control: [f64; 4],
 }
 
 pub enum Msg {
@@ -27,7 +26,6 @@ impl Component for Controller {
             link: link,
             store: store,
             state: None,
-            control: [0.0; 4],
         }
     }
 
@@ -36,20 +34,24 @@ impl Component for Controller {
             Msg::FromStore(s) => match s {
                 StoreOutput::StateInstance(state) => {
                     self.state = Some(state);
+                    self.store.send(StoreInput::TakeControl);
                     //self.register_state_handlers();
                     false
                 }
             },
             Msg::Left(data) => {
-                self.control[0] = data.1;
-                self.control[3] = data.0;
-                self.state.as_ref().unwrap().control.set(self.control);
+                let thrust = if data.1 >= 0.0 {
+                    data.1 * 2.0
+                } else {
+                    0.0
+                };
+                let control = [thrust, 0.0, 0.0, data.0];
+                self.state.as_ref().unwrap().control.set(control);
                 false
             }
             Msg::Right(data) => {
-                self.control[1] = data.1;
-                self.control[2] = data.0;
-                self.state.as_ref().unwrap().control.set(self.control);
+                let control = [0.0, data.1, data.0, 0.0];
+                self.state.as_ref().unwrap().control.set(control);
                 false
             }
         }
@@ -57,6 +59,11 @@ impl Component for Controller {
 
     fn mounted(&mut self) -> ShouldRender {
         false
+    }
+
+    fn destroy(&mut self) {
+        log::info!("controller destroyed");
+        self.store.send(StoreInput::ReleaseControl);
     }
 
     fn view(&self) -> Html {

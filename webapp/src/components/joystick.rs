@@ -35,10 +35,10 @@ impl Component for Joystick {
         let container = props.parent.cast::<HtmlElement>().unwrap();
         let task = TouchService::new().touchscreen(&container, cb);
         Self {
-            link: link,
+            link,
             parent: props.parent,
             onmove: props.onmove,
-            task: task,
+            task,
             active: None,
             position: (0, 0),
             delta: (0.0, 0.0),
@@ -48,7 +48,11 @@ impl Component for Joystick {
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::TouchEvent(event) => match event.unchecked_ref::<Event>().type_().as_str() {
+            Msg::TouchEvent(event) => match event
+                .unchecked_ref::<Event>()
+                .type_()
+                .as_str()
+            {
                 "touchstart" => {
                     self.scale = self.scale.or(self
                         .parent
@@ -60,7 +64,7 @@ impl Component for Joystick {
                     let y = touch.client_y();
                     self.position = (x, y);
                     false
-                }
+                },
                 "touchend" => {
                     if let Some(id) = self.active {
                         let touches = event.changed_touches();
@@ -74,7 +78,7 @@ impl Component for Joystick {
                         }
                     }
                     self.active.is_none()
-                }
+                },
                 "touchmove" => {
                     if let Some(id) = self.active {
                         let touches = event.changed_touches();
@@ -90,8 +94,10 @@ impl Component for Joystick {
                         let touch = touch.unwrap();
 
                         let scale = self.scale.unwrap_or(100.0);
-                        let dx = f64::from(self.position.0 - touch.client_x()) / scale;
-                        let dy = f64::from(self.position.1 - touch.client_y()) / scale;
+                        let dx = f64::from(self.position.0 - touch.client_x())
+                            / scale;
+                        let dy = f64::from(self.position.1 - touch.client_y())
+                            / scale;
                         let (dx, dy) = if dx.powi(2) + dy.powi(2) > 2500.0 {
                             let alpha = dx.atan2(dy);
                             (50.0 * alpha.sin(), 50.0 * alpha.cos())
@@ -106,7 +112,7 @@ impl Component for Joystick {
                     } else {
                         false
                     }
-                }
+                },
                 _ => false,
             },
         }

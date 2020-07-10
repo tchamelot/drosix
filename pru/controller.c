@@ -25,8 +25,8 @@ void main(void) {
     int32_t thrust = 0;
 
     /* performance */
-    /* uint32_t cycle = 0U; */
-    /* uint32_t stall = 0U; */
+    uint32_t cycle = 0U;
+    uint32_t stall = 0U;
 
     CT_CFG.SYSCFG_bit.STANDBY_INIT = 0U;    /* enable OCP master port */
 
@@ -42,11 +42,19 @@ void main(void) {
 
     configure_timer();
 
+#pragma CHECK_MISRA("-11.3")
+    PRU0_CTRL.CTRL_bit.CTR_EN = 1U;
+#pragma RESET_MISRA("11.3")
+
     while(run == 1U) {
         switch(check_event0()) {
         /* PID */
         case EVT_PID_STEP:
             CT_ECAP.ECCLR = 0xffU;
+#pragma CHECK_MISRA("-11.3")
+            cycle = PRU0_CTRL.CYCLE;
+            stall = PRU0_CTRL.STALL;
+#pragma RESET_MISRA("11.3")
             velocity_target[0] = run_pid(&pids[0]);
             velocity_target[1] = run_pid(&pids[1]);
             velocity_target[2] = run_pid(&pids[2]);
@@ -64,9 +72,13 @@ void main(void) {
             controller.outputs[2] = (uint32_t)(199999 + thrust + velocity_cmd[0] - velocity_cmd[1] - velocity_cmd[2]);
             controller.outputs[3] = (uint32_t)(199999 + thrust - velocity_cmd[0] - velocity_cmd[1] + velocity_cmd[2]);
 #pragma RESET_MISRA("10.3, 12.1")
+#pragma CHECK_MISRA("-11.3")
+            controller.pru0_cycle = PRU0_CTRL.CYCLE - cycle;
+            controller.pru0_stall = PRU0_CTRL.STALL - stall;
+#pragma RESET_MISRA("11.3")
 
             send_event(MST_5);
-            /* send_event(MST_15); */
+            send_event(MST_15);
             break;
         /* STOP */
         case EVT_CONTROLLER_STOP:

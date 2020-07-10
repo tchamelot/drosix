@@ -5,6 +5,7 @@ use std::f32;
 use std::rc::Rc;
 use web_sys::HtmlCanvasElement;
 use yew::prelude::*;
+//use yewtil::NeqAssign;
 
 struct NordTheme;
 
@@ -34,8 +35,8 @@ pub type ChartCallback = Rc<RefCell<Callback<Vec<Rc<CircularQueue<f32>>>>>>;
 pub struct Chart {
     root: Option<DrawingArea<CanvasBackend, plotters::coord::Shift>>,
     node_ref: NodeRef,
-    width: i32,
-    height: i32,
+    width: Option<i32>,
+    height: Option<i32>,
     style: String,
     labels: Option<Vec<String>>,
 }
@@ -67,8 +68,8 @@ impl Component for Chart {
         Chart {
             root: None,
             node_ref: NodeRef::default(),
-            width: props.width.unwrap_or(600),
-            height: props.width.unwrap_or(600),
+            width: props.width,
+            height: props.height,
             style: props.style,
             labels: props
                 .labels
@@ -81,9 +82,11 @@ impl Component for Chart {
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::NewData(data) => {
-                let canvas = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
-                let canvas = CanvasBackend::with_canvas_object(canvas).unwrap();
-                self.root = Some(canvas.into_drawing_area());
+                if self.root.is_none() {
+                    let canvas = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
+                    let canvas = CanvasBackend::with_canvas_object(canvas).unwrap();
+                    self.root = Some(canvas.into_drawing_area());
+                }
                 self.draw(data.iter().map(|x| x.as_ref().asc_iter()).collect());
             }
         }
@@ -91,25 +94,34 @@ impl Component for Chart {
     }
 
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        if let Some(width) = props.width {
-            self.width = width;
+        let mut redraw = false;
+        if self.width != props.width {
+            self.width = props.width;
+            self.root = None;
+            redraw = true;
         }
-        if let Some(height) = props.height {
-            self.height = height;
+        if self.height != props.height {
+            self.height = props.height;
+            self.root = None;
+            redraw = true;
         }
-        self.style = props.style;
+        if self.style != props.style {
+            self.style = props.style;
+            redraw = true;
+        }
         self.labels = props
             .labels
             .as_ref()
             .map(|x| x.split_whitespace().collect())
             .map(|x: Vec<&str>| x.into_iter().map(|y| String::from(y)).collect());
-        true
+        redraw
     }
 
     fn view(&self) -> Html {
         html! {
             <canvas ref={self.node_ref.clone()}
-                width={self.width} height={self.height}
+                width=self.width.unwrap_or(400)
+                height=self.height.unwrap_or(200)
                 class={self.style.as_str()}/>
         }
     }
