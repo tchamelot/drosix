@@ -19,11 +19,18 @@ bytes               = "0.5"
 webrtc-unreliable   = { git = "https://github.com/tchamelot/webrtc-unreliable.git" }
 message             = { path = "../message" }
 
+# Remote controller
+gilrs = "0.8"
+
 anyhow              = "1.0"
 [dependencies.mpu9250]
 git         = "https://github.com/tchamelot/mpu9250"
 branch      = "drosix"
 features    = ["i2c", "dmp_quat6", "dmp_accel", "dmp_motion"]
+
+[[bin]]
+name = "remote"
+path = "src/remote.rs"
 
 [features]
 default = []
