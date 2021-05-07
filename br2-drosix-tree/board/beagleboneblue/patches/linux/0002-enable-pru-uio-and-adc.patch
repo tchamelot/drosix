@@ -5,7 +5,7 @@ index b879d467cdce..34dd26928946 100644
 @@ -1,23 +1,25 @@
 -// SPDX-License-Identifier: GPL-2.0-only
  /*
-  * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+  * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License version 2 as
@@ -69,7 +69,7 @@ index b879d467cdce..34dd26928946 100644
  	*/
  	oppnitro-1000000000 {
  		opp-supported-hw = <0x06 0x0100>;
-@@ -225,18 +223,17 @@
+@@ -225,17 +223,17 @@
  
  	user_leds_s0: user_leds_s0 {
  		pinctrl-single,pins = <
@@ -84,7 +84,6 @@ index b879d467cdce..34dd26928946 100644
 -			AM33XX_PADCONF(AM335X_PIN_LCD_DATA15, PIN_OUTPUT, MUX_MODE7) /* (T5) lcd_data15.gpio0[11] - P8.32, BATT_LED_2 */
 -			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN0, PIN_OUTPUT, MUX_MODE7) /* (V6) gpmc_csn0.gpio1[29] - P8.26, BATT_LED_3 */
 -			AM33XX_PADCONF(AM335X_PIN_GPMC_AD10, PIN_OUTPUT, MUX_MODE7) /* (T11) gpmc_ad10.gpio0[26] - P8.14, BATT_LED_4 */
--
 +			AM33XX_IOPAD(0x854, PIN_OUTPUT | MUX_MODE7) /* (V15) gpmc_a5.gpio1[21] - USR_LED_0 */
 +			AM33XX_IOPAD(0x858, PIN_OUTPUT | MUX_MODE7) /* (U15) gpmc_a6.gpio1[22] - USR_LED_1 */
 +			AM33XX_IOPAD(0x85c, PIN_OUTPUT | MUX_MODE7) /* (T15) gpmc_a7.gpio1[23] - USR_LED_2 */
@@ -226,7 +225,7 @@ index b879d467cdce..34dd26928946 100644
 -	eqep0_pins: pinmux_eqep0_pins {
 +	ehrpwm1_pins: pinmux_ehrpwm1_pins {
  		pinctrl-single,pins = <
--			AM33XX_PADCONF(AM335X_PIN_MCASP0_AXR0, PIN_INPUT, MUX_MODE1)		/* (B12) mcasp0_aclkr.eQEP0A_in */
+-			AM33XX_PADCONF(AM335X_PIN_MCASP0_ACLKR, PIN_INPUT, MUX_MODE1)		/* (B12) mcasp0_aclkr.eQEP0A_in */
 -			AM33XX_PADCONF(AM335X_PIN_MCASP0_FSR, PIN_INPUT, MUX_MODE1)		/* (C13) mcasp0_fsr.eQEP0B_in */
 +			0x020  0x24 /* P8_19_pwm_pin */
 +			0x024  0x24 /* P8_13_pwm_pin */

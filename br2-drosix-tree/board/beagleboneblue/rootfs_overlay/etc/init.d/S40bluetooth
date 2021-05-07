@@ -1,0 +1,50 @@
+#!/bin/sh
+
+# Exit immediately if a command exits with a non-zero exit status
+set -e
+
+start() {
+    printf "Starting bluetooth:\n"
+
+    if [ -f /sys/class/leds/wl18xx_bt_en/brightness ] ; then
+        # Reset the bluethooth enable pin
+        if [ `cat /sys/class/leds/wl18xx_bt_en/brightness` = "1" ]; then
+            echo 0 > /sys/class/leds/wl18xx_bt_en/brightness
+            sleep 1
+        fi
+        echo 1 > /sys/class/leds/wl18xx_bt_en/brightness
+        sleep 1
+        hciattach /dev/ttyS3 texas 300000
+        sleep 1
+        /usr/libexec/bluetooth/bluetoothd&
+    else
+        printf "Failed to turn on wl18xx\n"
+        exit 1
+    fi
+    printf "OK\n"
+}
+
+stop() {
+    printf "Stoping bluetooth\n"
+    killall -TERM bluetoothd || true
+    killall -TERM hciattach || true
+}
+
+case "$1" in
+  start)
+      start
+      ;;
+  stop)
+      stop
+      ;;
+  restart)
+    stop
+    sleep 3
+    start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+esac
+
+exit 0
