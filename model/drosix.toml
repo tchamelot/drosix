@@ -1,0 +1,30 @@
+[frame]
+mass        = 0.9       # kg
+size        = 0.45      # m
+jx          = 1.334e-2  # kg.m²
+jy          = 1.334e-2  # kg.m²
+jz          = 2.557e-2  # kg.m²
+
+[motor]
+mass        = 0.052     # kg
+kv          = 750       # rpm/V
+p_max       = 185       # w
+r           = 0.192     # Ohm
+u_nom       = 10        # V
+i_nom       = 0.5       # A
+i_max       = 19        # A
+tm          = 0.0164    # s
+
+[esc]
+r           = 0.008     # Ohm
+
+[propeller]
+diameter    = 10        # inch
+pitch       = 4.5       # inch
+blade       = 2
+
+[battery]
+cell        = 3
+capacity    = 2600      # mAh
+C           = 45        # C
+r           = 0.0063    # Ohm

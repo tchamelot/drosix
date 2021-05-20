@@ -1,0 +1,38 @@
+[frame]
+mass = 0.9
+size = 0.45
+jx = 0.01334
+jy = 0.01334
+jz = 0.02557
+
+[motor]
+mass = 0.052
+kv = 750
+p_max = 185
+r = 0.192
+u_nom = 10
+i_nom = 0.5
+i_max = 19
+tm = 0.0164
+cr = 751.6405318721676
+wb = 63.61006761003853
+
+[esc]
+r = 0.008
+
+[propeller]
+diameter = 10
+pitch = 4.5
+blade = 2
+cm = 2.1057488505987914e-7
+ct = 1.2015048134840038e-5
+
+[battery]
+cell = 3
+capacity = 2600
+C = 45
+r = 0.0063
+
+[hover]
+throttle = 0.48531459089510737
+w = 428.3921848357604
