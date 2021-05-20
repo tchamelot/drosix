@@ -35,11 +35,11 @@ struct pid_parameter_t {
     int32_t kd;
 };
 
-struct pid_t {
-    struct pid_parameter_t _parameter;
-    int32_t error;
-    int32_t input[2];
-};
+// struct pid_t {
+//     struct pid_parameter_t _parameter;
+//     int32_t error;
+//     int32_t input[2];
+// };
 
 struct controller_t {
     volatile int32_t inputs[7];

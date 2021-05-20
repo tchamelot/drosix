@@ -28,7 +28,7 @@ void main(void) {
         switch(check_event1()) {
         case EVT_PWM_STEP:
             CT_IEP.TMR_CMP_STS = 0x1U;
-            send_event(MST_15);
+            /* send_event(MST_15); */
             set_pins(ALL_MOTORS);
             break;
         /* STOP */

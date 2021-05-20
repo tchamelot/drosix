@@ -1,40 +1,58 @@
 CC = clpru
 OBJCOPY = hexpru
 
+PRU_CGT := /usr/share/ti-cgt-pru_2.3.3
+PRU_SUPPORT_PACKAGE := /usr/share/pru-software-support-package
+
 ASM_FLAGS := --silicon_version=3
 ASFLAGS := -pden
-CFLAGS := 	-Ipru-software-support-package/include -I$(PRU_CGT)/include \
+CFLAGS := 	-I$(PRU_SUPPORT_PACKAGE)/include -I$(PRU_CGT)/include \
 			--hardware_mac=on -O2 \
-			-pden -pdew -pdr --check_misra=all -q
+			-pden -pdew -pdr -q \
+			--obj_directory=build --obj_extension=.o # --check_misra=all -q
 LDFLAGS := -z am335x.ld -q -pdew -i$(PRU_CGT)/lib --library=libc.a
 
 LINKER_CMD = servo.ld
 
-DOCKER = docker
-DOCKER_IMAGE = kylemanna/am335x
+TARGETS := build/controller.bin build/motor.bin build/test_pid.bin
 
-.PHONY: all build clean docker docker-interactive
-all: docker
+CONTROLLER_SRC = src/controller.c
+MOTOR_SRC = src/motor.c
+TEST_PID_SRC = src/pid_test.c src/pid.c
 
-build: servo.bin controller.bin
+CONTROLLER_OBJ = $(patsubst src/%.c, build/%.o, $(CONTROLLER_SRC))
+MOTOR_OBJ = $(patsubst src/%.c, build/%.o, $(MOTOR_SRC))
+TEST_PID_OBJ = $(patsubst src/%.c, build/%.o, $(TEST_PID_SRC))
 
-docker:
-	@$(DOCKER) run --rm --volume `pwd`:/work $(DOCKER_IMAGE) "make -C /work build"
+.PHONY: all build clean
 
-docker-interactive:
-	@$(DOCKER) run -it --rm --volume `pwd`:/work $(DOCKER_IMAGE) "bash"
+all: $(TARGETS)
+
+build/controller.elf: $(CONTROLLER_OBJ)
+	@echo "(LD) $@"
+	@$(CC) $^ $(LDFLAGS) -o $@
+
+build/motor.elf: $(MOTOR_OBJ)
+	@echo "(LD) $@"
+	@$(CC) $^ $(LDFLAGS) -o $@
+
+build/test_pid.elf: $(TEST_PID_OBJ)
+	@echo "(LD) $@"
+	@$(CC) $^ $(LDFLAGS) -o $@
 
 %.bin: %.elf
 	@$(OBJCOPY) -b -o $@ $< --quiet
 
-%.elf: %.obj
+%.elf: %.o
+	@echo "(LD) $@"
 	@$(CC) $^ $(LDFLAGS) -o $@
 
-%.obj: %.asm
+%.o: %.asm
 	@$(CC) $(ASFLAGS) -c $<
 
-%.obj: %.c drosix.h util.h
+build/%.o: src/%.c src/drosix.h src/util.h
+	@echo "(CC) $@"
 	@$(CC) $(CFLAGS) -c $<
 
 clean:
-	@rm -rf *.obj *.bin
+	@rm -rf build/*
