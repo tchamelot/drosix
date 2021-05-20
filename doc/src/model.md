@@ -1,4 +1,4 @@
-# Drosix quadcopter mathematical model
+# Drosix quadcopter model
 
 In order to be able to control a quadcopter drone (or any UAV), the on-board
 computer uses a controller build and tuned based on a mathematical model.
@@ -153,4 +153,12 @@ Generated using [flyeval](https://www.flyeval.com/).
 * Air-Drag Coef. by Drag (N) dividing fly-speed² (m/s), i.e. (Cd=D/V²) Cd
   = \\(6.579^e{-2}\\) N/(m/s²)
 * Air-Torque Coef. by Torque (N.m) dividing rotation-speed² (rad/s), i.e. (Cdm=M/w²) Cdm = 9.012e-3
+
+## Evaluation
+
+1. Hover mode: hover time, throttle, Ie, Ue, Ib, N
+2. Max throttle: Ie, Ue, Ib, N, efficiency
+3. Forward mode: max load, max pitch
+4. Forward mode: max speed, max distance
+
 
