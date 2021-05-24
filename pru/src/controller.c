@@ -6,6 +6,7 @@
 #include <am335x/pru_ecap.h>
 #include "util.h"
 #include "drosix.h"
+#include "pid.h"
 #pragma RESET_MISRA("all")
 
 void main(void);
@@ -19,9 +20,10 @@ void main(void) {
     uint32_t i;
     uint8_t run = 1U;
     struct pid_t pids[7];
-    int32_t velocity_measure[3] = {0, 0, 0};
-    int32_t velocity_target[3] = {0, 0, 0};
-    int32_t velocity_cmd[3] = {0, 0, 0};
+    float p_error[3] = {0.0, 0.0, 0.0};
+    float v_measure[3] = {0.0, 0.0, 0.0};
+    float v_setpoint[3] = {0.0, 0.0, 0.0};
+    float v_command[3] = {0.0, 0.0, 0.0};
     int32_t thrust = 0;
 
     /* performance */
@@ -37,7 +39,11 @@ void main(void) {
 
     /* store pid coef in local memory */
     for(i = 0u; i < 7u; i++) {
-        pids[i]._parameter = controller.parameter[i];
+        pid_init(&pids[i],
+            controller.parameter[i].kp,
+            controller.parameter[i].ki,
+            controller.parameter[i].kd1,
+            controller.parameter[i].kd2)
     }
 
     configure_timer();
@@ -55,17 +61,15 @@ void main(void) {
             cycle = PRU0_CTRL.CYCLE;
             stall = PRU0_CTRL.STALL;
 #pragma RESET_MISRA("11.3")
-            velocity_target[0] = run_pid(&pids[0]);
-            velocity_target[1] = run_pid(&pids[1]);
-            velocity_target[2] = run_pid(&pids[2]);
+            v_setpoint[0] = run_pid(&pids[0], p_error[0]);
+            v_setpoint[1] = run_pid(&pids[1], p_error[1]);
+            v_setpoint[2] = run_pid(&pids[2], p_error[2]);
             /* thrust = run_pid(&pids[3]); */
-            pids[4].input[0] = velocity_target[0] - velocity_measure[0];
-            pids[5].input[0] = velocity_target[1] - velocity_measure[1];
-            pids[6].input[0] = velocity_target[2] - velocity_measure[2];
-            velocity_cmd[0] = run_pid(&pids[4]);
-            velocity_cmd[1] = run_pid(&pids[5]);
-            velocity_cmd[2] = run_pid(&pids[6]);
+            v_command[0] = run_pid(&pids[4], v_setpoint[0] - v_measure[0]);
+            v_command[1] = run_pid(&pids[5], v_setpoint[1] - v_measure[1]);
+            v_command[2] = run_pid(&pids[6], v_setpoint[2] - v_measure[2]);
 
+            // TODO
 #pragma CHECK_MISRA("-10.3, -12.1")
             controller.outputs[0] = (uint32_t)(199999 + thrust + velocity_cmd[0] + velocity_cmd[1] + velocity_cmd[2]);
             controller.outputs[1] = (uint32_t)(199999 + thrust - velocity_cmd[0] + velocity_cmd[1] - velocity_cmd[2]);
@@ -91,14 +95,13 @@ void main(void) {
         /* New data */
         case EVT_PID_NEW_DATA:
             /* handle new data */
-            pids[0].input[0] = controller.inputs[0];
-            pids[1].input[0] = controller.inputs[1];
-            pids[2].input[0] = controller.inputs[2];
-            /* pids[3].input[0] = controller.inputs[3]; */
+            p_error[0] = controller.inputs[0];
+            p_error[1] = controller.inputs[1];
+            p_error[2] = controller.inputs[2];
             thrust = controller.inputs[3];
-            velocity_measure[0] = controller.inputs[4];
-            velocity_measure[1] = controller.inputs[5];
-            velocity_measure[2] = controller.inputs[6];
+            v_measure[0] = controller.inputs[4];
+            v_measure[1] = controller.inputs[5];
+            v_measure[2] = controller.inputs[6];
             break;
         case EVT_SET_ARMED:
             set_armed();
@@ -119,26 +122,6 @@ void main(void) {
     send_event(EVT_CONTROLLER_STATUS);
 
     __halt();
-}
-
-int32_t run_pid(struct pid_t* pid) {
-    int32_t delta, result;
-
-    pid->error += pid->input[0];
-    delta = pid->input[0] - pid->input[1];
-    result = pid->_parameter.kp * pid->input[0];
-    result += (pid->_parameter.ki * pid->error);
-    result += (pid->_parameter.kd * delta);
-
-    /* TODO handle min and max */
-    /* if(result >= 399999) {
-        result = 399999;
-    }
-    if(result <= 179999) {
-        result = 179999;
-    } */
-
-    return result;
 }
 
 void configure_timer(void) {

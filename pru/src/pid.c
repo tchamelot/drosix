@@ -1,6 +1,16 @@
 #include "pid.h"
 
-float run_pid(struct pid_t* pid, float error) {
+void pid_init(struct pid_t* pid, float kp, float ki, float kd1, float kd1) {
+    pid->kp = kp;
+    pid->ki = ki;
+    pid->kd1 = kd1;
+    pid->kd2 = kd2;
+    pid->error_prev = 0.0;
+    pid->i_prev = 0.0;
+    pid->d_prev = 0.0;
+}
+
+float pid_run(struct pid_t* pid, float error) {
     float p, i_min, i_max;
 
     // Proportional

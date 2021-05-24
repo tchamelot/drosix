@@ -80,7 +80,7 @@ void configure_timer(void) {
     CT_IEP.TMR_GLB_CFG_bit.CNT_EN = 0U;             /* Disable counter                  */
     CT_IEP.TMR_CNT = 0xFFFFFFFFU;                   /* Reset Count register             */
     CT_IEP.TMR_GLB_STS_bit.CNT_OVF = 0x1U;          /* Clear overflow status register   */
-    CT_IEP.TMR_CMP0 = PWM_PERIOD / 5U - 1U;          /* Set compare0 value               */
+    CT_IEP.TMR_CMP0 = PWM_PERIOD / 5U - 1U;         /* Set compare0 value               */
     CT_IEP.TMR_CMP_STS_bit.CMP_HIT = 0xFFU;         /* Clear compare status             */
     CT_IEP.TMR_COMPEN_bit.COMPEN_CNT = 0x0U;        /* Disable compensation             */
     CT_IEP.TMR_CMP_CFG_bit.CMP0_RST_CNT_EN = 0x1U;  /* Disable CMP0 and reset on event  */

@@ -30,20 +30,15 @@
 
 /* Data abstraction */
 struct pid_parameter_t {
-    int32_t kp;
-    int32_t ki;
-    int32_t kd;
+    float kp;
+    float ki;
+    float kd1;
+    float kd2;
 };
 
-// struct pid_t {
-//     struct pid_parameter_t _parameter;
-//     int32_t error;
-//     int32_t input[2];
-// };
-
 struct controller_t {
-    volatile int32_t inputs[7];
-    volatile uint32_t outputs[4];
+    volatile float inputs[7];
+    volatile float outputs[4];
     volatile struct pid_parameter_t parameter[7];
     volatile uint32_t pru0_cycle;
     volatile uint32_t pru0_stall;
