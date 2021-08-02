@@ -1,9 +1,18 @@
+# Rust
 **/target
 **/*.rs.bk
 Cargo.lock
+
+# Webapp
 webapp/node_modules
 webapp/dist
 webapp/pkg
+
+# PRU
 *.bin
 *.obj
 *.elf
+build
+
+# Python
+__pycache__
