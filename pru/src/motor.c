@@ -9,12 +9,13 @@
 #pragma RESET_MISRA("all")
 
 void main(void);
+void read_motor_cmd(uint32_t cmd[4]);
 void configure_timer(void);
 
 void main(void) {
     uint8_t run = 1U;
     uint32_t cycle = 0U;
-    uint32_t duty_cycles[4] = {179999U, 179999U, 179999U, 179999U};
+    uint32_t duty_cycles[4];
 
     CT_CFG.SYSCFG_bit.STANDBY_INIT = 0U;    /* enable OCP master port */
 
@@ -24,11 +25,13 @@ void main(void) {
 
     configure_timer();
 
+    read_motor_cmd(duty_cycles);
+
     while(run == 1U) {
         switch(check_event1()) {
         case EVT_PWM_STEP:
             CT_IEP.TMR_CMP_STS = 0x1U;
-            /* send_event(MST_15); */
+            /* send_event(EVT_DEBUG); */
             set_pins(ALL_MOTORS);
             break;
         /* STOP */
@@ -37,11 +40,8 @@ void main(void) {
             break;
         /* New data */
         case EVT_PID_OUTPUT:
-            /* send_event(MST_15); */
-            duty_cycles[0] = controller.outputs[0];
-            duty_cycles[1] = controller.outputs[1];
-            duty_cycles[2] = controller.outputs[2];
-            duty_cycles[3] = controller.outputs[3];
+            /* send_event(EVT_DEBUG); */
+            read_motor_cmd(duty_cycles);
             break;
         /* No event yet */
         case None:
@@ -87,4 +87,17 @@ void configure_timer(void) {
     CT_IEP.TMR_CMP_CFG_bit.CMP_EN = 0x1U;
     CT_IEP.TMR_GLB_CFG_bit.DEFAULT_INC = 0x1U;      /* Configure incr value             */
     CT_IEP.TMR_GLB_CFG_bit.CNT_EN = 1U;             /* Enable counter                   */
+}
+
+void read_motor_cmd(uint32_t cmd[4]) {
+    uint32_t i;
+    for(i = 0U; i < 4; i++) {
+        cmd[i] = controller.outputs[i];
+        if(cmd[i] < 199999) {
+            cmd[i] = 199999;
+        }
+        else if(cmd[i] > 399999) {
+            cmd[i] = 399999;
+        }
+    }
 }
