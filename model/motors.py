@@ -11,7 +11,7 @@ def motors_update(t, x, u, params={}):
     x: array
         System state: motors speed
     u: array
-        System input: motors throttle
+        System input: motors throttle (between 0 and 199999)
 
     Return
     ------
