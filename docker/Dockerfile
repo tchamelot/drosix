@@ -43,6 +43,16 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates
 
+RUN curl -LO https://software-dl.ti.com/codegen/esd/cgt_public_sw/PRU/2.3.3/ti_cgt_pru_2.3.3_linux_installer_x86.bin && \
+    chmod +x ti_cgt_pru_2.3.3_linux_installer_x86.bin && \
+    /ti_cgt_pru_2.3.3_linux_installer_x86.bin --mode unattended --prefix /usr/share && \
+    cd /usr/share/ti-cgt-pru_2.3.3/bin && \
+    for i in *; do ln -s $PWD/$i /usr/local/bin/; done && \
+    cd - && \
+    rm /ti_cgt_pru_2.3.3_linux_installer_x86.bin
+
+RUN git clone git://git.ti.com/pru-software-support-package/pru-software-support-package.git --depth=1 --branch=v5.8.0 /usr/share/pru-software-support-package
+
 # Sometimes Buildroot need proper locale, e.g. when using a toolchain
 # based on glibc.
 RUN locale-gen en_US.utf8
@@ -79,16 +89,6 @@ ENV PKG_CONFIG_SYSROOT_DIR=$SYSROOT
 
 # Work around to change permission on the mounted volume in /home/worker
 USER root
-
-RUN curl -LO https://software-dl.ti.com/codegen/esd/cgt_public_sw/PRU/2.3.3/ti_cgt_pru_2.3.3_linux_installer_x86.bin && \
-    chmod +x ti_cgt_pru_2.3.3_linux_installer_x86.bin && \
-    /home/worker/ti_cgt_pru_2.3.3_linux_installer_x86.bin --mode unattended --prefix /usr/share && \
-    cd /usr/share/ti-cgt-pru_2.3.3/bin && \
-    for i in *; do ln -s $PWD/$i /usr/local/bin/; done && \
-    cd - && \
-    rm /home/worker/ti_cgt_pru_2.3.3_linux_installer_x86.bin
-
-RUN git clone git://git.ti.com/pru-software-support-package/pru-software-support-package.git --depth=1 --branch=v5.8.0 /usr/share/pru-software-support-package
 
 COPY entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
