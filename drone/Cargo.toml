@@ -26,7 +26,7 @@ anyhow              = "1.0"
 [dependencies.mpu9250]
 git         = "https://github.com/tchamelot/mpu9250"
 branch      = "drosix"
-features    = ["i2c", "dmp_quat6", "dmp_accel", "dmp_motion"]
+features    = ["i2c", "dmp_quat6", "dmp_accel", "dmp_gyro", "dmp_motion"]
 
 [[bin]]
 name = "remote"

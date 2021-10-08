@@ -13,6 +13,7 @@ use mpu9250::{DmpRate, MpuConfig};
 
 pub struct Odometry {
     pub euler: [f64; 3],
+    pub gyro: [f32; 3],
     pub thrust: f64,
 }
 
@@ -69,9 +70,11 @@ impl Sensors {
         match self.imu.dmp_all() {
             Ok(measure) => {
                 let euler = quat_to_euler(&measure.quaternion);
+                let gyro = measure.gyro;
                 let thrust = compute_thrust(&measure.accel, &euler);
                 Ok(Odometry {
                     euler,
+                    gyro,
                     thrust,
                 })
             },
