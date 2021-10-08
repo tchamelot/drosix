@@ -30,10 +30,8 @@
 
 /* Data abstraction */
 struct pid_parameter_t {
-    float kp;
-    float ki;
-    float kd1;
-    float kd2;
+    float a[3];
+    float b[2];
 };
 
 struct controller_t {

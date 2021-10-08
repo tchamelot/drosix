@@ -10,7 +10,7 @@
 #pragma RESET_MISRA("all")
 
 void main(void);
-int32_t run_pid(struct pid_t* pid);
+int32_t pid_run(struct pid_t* pid);
 void configure_timer(void);
 void set_armed(void);
 void clear_armed(void);
@@ -39,11 +39,7 @@ void main(void) {
 
     /* store pid coef in local memory */
     for(i = 0u; i < 7u; i++) {
-        pid_init(&pids[i],
-            controller.parameter[i].kp,
-            controller.parameter[i].ki,
-            controller.parameter[i].kd1,
-            controller.parameter[i].kd2)
+        pid_init(&pids[i], controller.parameter[i].a, controller.parameter.b)
     }
 
     configure_timer();
@@ -61,20 +57,20 @@ void main(void) {
             cycle = PRU0_CTRL.CYCLE;
             stall = PRU0_CTRL.STALL;
 #pragma RESET_MISRA("11.3")
-            v_setpoint[0] = run_pid(&pids[0], p_error[0]);
-            v_setpoint[1] = run_pid(&pids[1], p_error[1]);
-            v_setpoint[2] = run_pid(&pids[2], p_error[2]);
-            /* thrust = run_pid(&pids[3]); */
-            v_command[0] = run_pid(&pids[4], v_setpoint[0] - v_measure[0]);
-            v_command[1] = run_pid(&pids[5], v_setpoint[1] - v_measure[1]);
-            v_command[2] = run_pid(&pids[6], v_setpoint[2] - v_measure[2]);
+            v_setpoint[0] = pid_run(&pids[0], p_error[0]);
+            v_setpoint[1] = pid_run(&pids[1], p_error[1]);
+            v_setpoint[2] = pid_run(&pids[2], p_error[2]);
+            /* thrust = pid_run(&pids[3]); */
+            v_command[0] = pid_run(&pids[4], v_setpoint[0] - v_measure[0]);
+            v_command[1] = pid_run(&pids[5], v_setpoint[1] - v_measure[1]);
+            v_command[2] = pid_run(&pids[6], v_setpoint[2] - v_measure[2]);
 
             // TODO
 #pragma CHECK_MISRA("-10.3, -12.1")
-            controller.outputs[0] = (uint32_t)(199999 + thrust + velocity_cmd[0] + velocity_cmd[1] + velocity_cmd[2]);
-            controller.outputs[1] = (uint32_t)(199999 + thrust - velocity_cmd[0] + velocity_cmd[1] - velocity_cmd[2]);
-            controller.outputs[2] = (uint32_t)(199999 + thrust + velocity_cmd[0] - velocity_cmd[1] - velocity_cmd[2]);
-            controller.outputs[3] = (uint32_t)(199999 + thrust - velocity_cmd[0] - velocity_cmd[1] + velocity_cmd[2]);
+            controller.outputs[0] = (uint32_t)(199999 + thrust + v_command[0] + v_command[1] + v_command[2]);
+            controller.outputs[1] = (uint32_t)(199999 + thrust - v_command[0] + v_command[1] - v_command[2]);
+            controller.outputs[2] = (uint32_t)(199999 + thrust + v_command[0] - v_command[1] - v_command[2]);
+            controller.outputs[3] = (uint32_t)(199999 + thrust - v_command[0] - v_command[1] + v_command[2]);
 #pragma RESET_MISRA("10.3, 12.1")
 #pragma CHECK_MISRA("-11.3")
             controller.pru0_cycle = PRU0_CTRL.CYCLE - cycle;
@@ -108,6 +104,9 @@ void main(void) {
             break;
         case EVT_CLEAR_ARMED:
             clear_armed();
+            for(int i =0; i < 7; i++) {
+              pid_reset(&pids[i]);
+            }
             break;
         /* No event yet */
         case None:
