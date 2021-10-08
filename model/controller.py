@@ -21,7 +21,7 @@ def itae_criterion(param, *args):
     """
     Compute the itae criterion for a PID with the given parameter
     param: [kp, ti, td]
-    args: (model, connections, output, t, u) 
+    args: (model, connections, output, t, u)
     """
     model, connections, output, t, u = args
     system = ct.InterconnectedSystem(
@@ -30,7 +30,7 @@ def itae_criterion(param, *args):
         inplist=('pid.e'),
         outlist=(output))
     t, y, x = ct.input_output_response(system, t, u, return_x=True)
-    itae = np.sum(np.abs(u -y) * t)
+    itae = np.sum(np.abs(u - y) * t)
     if np.abs(np.max(x[6])) > 400:
         itae = np.inf
     return itae

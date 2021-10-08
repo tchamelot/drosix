@@ -20,8 +20,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cffi, importlib, pycparser.c_generator
-import re, os, sys, subprocess, uuid
+import cffi
+import importlib
+import pycparser.c_generator
+import re
+import subprocess
+import uuid
 
 Remove_Unknowns = """\
         #define __attribute__(x)
@@ -30,7 +34,16 @@ Remove_Unknowns = """\
 #define __extension__
 """
 
-def load(source_files, include_paths=[], compiler_options=[], remove_unknowns='', module_name='pysim_', avoid_cache=False, en_code_coverage=False, en_sanitize_undefined=False, en_sanitize_address=False):
+
+def load(source_files,
+         include_paths=[],
+         compiler_options=[],
+         remove_unknowns='',
+         module_name='pysim_',
+         avoid_cache=False,
+         en_code_coverage=False,
+         en_sanitize_undefined=False,
+         en_sanitize_address=False):
     """Load a C file into Python as a module.
 
 source_files:     ['file1.c', file2.c'] or just 'file1.c'
@@ -53,10 +66,10 @@ en_sanitize_address=True: enables address sanitizer (not working).
 
     # Create a list if just one souce file in a string
     if type(source_files) == str:
-        source_files = [source_files,]
+        source_files = [source_files]
 
     # Prepend -I on include paths
-    include_paths = [ '-I' + x for x in include_paths ]
+    include_paths = ['-I' + x for x in include_paths]
 
     # Collect source code
     source_content = []
@@ -113,7 +126,7 @@ en_sanitize_address=True: enables address sanitizer (not working).
     # Run CFFI
     ffibuilder = cffi.FFI()
     ffibuilder.cdef(header_content)
-    include_dirs = [ x.replace('-I', '') for x in include_paths ]
+    include_dirs = [x.replace('-I', '') for x in include_paths]
 
     extra_compile_args = []
     extra_link_args = []
@@ -123,8 +136,6 @@ en_sanitize_address=True: enables address sanitizer (not working).
         # Address sanitizer
         # export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.4
         extra_compile_args += ['-fsanitize=address']
-        #extra_link_args += ['-fsanitize=address', '-static-libasan']
-        #extra_link_args += ['-fsanitize=address', '-shared-libasan']
         libraries += ['asan']
 
     if en_sanitize_undefined:
@@ -137,7 +148,11 @@ en_sanitize_address=True: enables address sanitizer (not working).
         extra_link_args += ['--coverage', ]
         libraries += []
 
-    ffibuilder.set_source(module_name, source_content, include_dirs=include_dirs, extra_compile_args=extra_compile_args, libraries=libraries, extra_link_args=extra_link_args)
+    ffibuilder.set_source(module_name, source_content,
+                          include_dirs=include_dirs,
+                          extra_compile_args=extra_compile_args,
+                          libraries=libraries,
+                          extra_link_args=extra_link_args)
     ffibuilder.compile()
 
     # Import and return resulting module
@@ -146,9 +161,9 @@ en_sanitize_address=True: enables address sanitizer (not working).
     # Return both the library object and the ffi object
     return module.lib, module.ffi
 
+
 def preprocess(source, include_paths, compiler_options):
     try:
-        #command = ['gcc', *compiler_options, *include_paths, '-E', '-P', '-']
         command = ['gcc', ] + compiler_options + include_paths + ['-E', '-P', '-']
         return subprocess.check_output(command, input=source, universal_newlines=True)
     except:
@@ -160,26 +175,24 @@ def preprocess(source, include_paths, compiler_options):
         print()
         raise
 
+
 class HeaderGenerator(pycparser.c_generator.CGenerator):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.functions = set()
+
     def set_SourceContent(self, source_content):
         self.source_content = source_content
+
     def visit_Decl(self, n, *args, **kwargs):
-        import os
         result = super().visit_Decl(n, *args, **kwargs)
         if isinstance(n.type, pycparser.c_ast.FuncDecl):
             # Is a function declaration
             if n.name in self.functions:
                 # Is already in functions
                 return result
-            elif re.search((
-                    re.escape(result)
-                    .replace('\\*', '\\*\\s*')
-                    .replace('\\ ', '\\s*')
-                    + '\\s*\{'
-                )   , self.source_content) != None:
+            elif re.search((re.escape(result).replace('\\*', '\\*\\s*').replace('\\ ', '\\s*') + '\\s*\{'),
+                           self.source_content) is not None:
                 # Is declared in source content
                 return result
             else:
@@ -193,6 +206,7 @@ class HeaderGenerator(pycparser.c_generator.CGenerator):
     def visit_FuncDef(self, n, *args, **kwargs):
         self.functions.add(n.decl.name)
         return ''
+
 
 class FFIMocks:
     """Define 'extern "Pyton+C"' function as a mock object.
@@ -210,15 +224,16 @@ Mocks.CreateMock(ffi, 'read_gpio1', return_value=21)
 Mocks.ResetMocks()
 """
     from unittest.mock import call
+
     def CreateMock(self, ffi, name, *args, **kwargs):
         import unittest.mock
         mock = unittest.mock.Mock(*args, **kwargs)
         setattr(self, name, mock)
         ffi.def_extern(name)(mock)
+
     def ResetMocks(self):
         import unittest.mock
         for name in dir(self):
             obj = getattr(self, name)
             if isinstance(obj, unittest.mock.Mock):
                 obj.reset_mock()
-

@@ -318,10 +318,6 @@ class allocation_controller:
 
 def main():
     drosix = toml.load('drosix.toml')
-    # propeller = Propeller(P_DIAMETER, P_PITCH, P_BLADE)
-    # motor = Motor(M_KV, M_I_MAX, M_I_NOM, M_U_NOM, M_R)
-    # esc = ESC(ESC_R)
-    # battery = Battery(B_CAPACITY, B_CELL, B_R, B_C)
     propeller = Propeller(drosix['propeller']['diameter'],
                           drosix['propeller']['pitch'],
                           drosix['propeller']['blade'])

@@ -3,7 +3,6 @@ import control as ct
 import matplotlib.pyplot as plt
 import toml
 import constants
-from scipy.optimize import minimize, differential_evolution
 from attitude import attitude
 from motors import motors
 import controller

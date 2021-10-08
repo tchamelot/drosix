@@ -16,3 +16,10 @@ build
 
 # Python
 __pycache__
+
+# mdbook
+book/
+
+# drosix
+images/
+.stamp_docker
