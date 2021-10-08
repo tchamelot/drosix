@@ -36,7 +36,7 @@ struct pid_parameter_t {
 
 struct controller_t {
     volatile float inputs[7];
-    volatile float outputs[4];
+    volatile uint32_t outputs[4];
     volatile struct pid_parameter_t parameter[7];
     volatile uint32_t pru0_cycle;
     volatile uint32_t pru0_stall;

@@ -1,9 +1,15 @@
 #include <string.h>
+#include <stdint.h>
 #include "pid.h"
 
-void pid_init(struct pid_t* pid, float a[3], float b[2]) {
-    memcpy(pid->a, a, sizeof(float)*3);
-    memcpy(pid->b, b, sizeof(float)*2);
+void pid_init(struct pid_t* pid, const volatile float a[3], const volatile float b[2]) {
+    uint32_t i;
+    for(i = 0u; i < 3; i++) {
+      pid->a[i] = a[i];
+    }
+    for(i = 0u; i < 2; i++) {
+      pid->b[i] = b[i];
+    }
     memset(pid->inputs, 0, sizeof(float)*2);
     memset(pid->outputs, 0, sizeof(float)*2);
 }

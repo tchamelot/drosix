@@ -7,7 +7,7 @@ struct pid_t {
     float outputs[2];
 };
 
-void pid_init(struct pid_t* pid, float a[3], float b[2]);
+void pid_init(struct pid_t* pid, const volatile float a[3], const volatile float b[2]);
 
 void pid_reset(struct pid_t* pid);
 

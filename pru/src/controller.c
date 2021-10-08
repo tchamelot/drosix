@@ -10,7 +10,6 @@
 #pragma RESET_MISRA("all")
 
 void main(void);
-int32_t pid_run(struct pid_t* pid);
 void configure_timer(void);
 void set_armed(void);
 void clear_armed(void);
@@ -39,7 +38,7 @@ void main(void) {
 
     /* store pid coef in local memory */
     for(i = 0u; i < 7u; i++) {
-        pid_init(&pids[i], controller.parameter[i].a, controller.parameter.b)
+        pid_init(&pids[i], controller.parameter[i].a, controller.parameter[i].b);
     }
 
     configure_timer();
@@ -67,18 +66,18 @@ void main(void) {
 
             // TODO
 #pragma CHECK_MISRA("-10.3, -12.1")
-            controller.outputs[0] = (uint32_t)(199999 + thrust + v_command[0] + v_command[1] + v_command[2]);
-            controller.outputs[1] = (uint32_t)(199999 + thrust - v_command[0] + v_command[1] - v_command[2]);
-            controller.outputs[2] = (uint32_t)(199999 + thrust + v_command[0] - v_command[1] - v_command[2]);
-            controller.outputs[3] = (uint32_t)(199999 + thrust - v_command[0] - v_command[1] + v_command[2]);
+            controller.outputs[0] = (uint32_t)(199999 + (int32_t)(thrust + v_command[0] + v_command[1] + v_command[2]));
+            controller.outputs[1] = (uint32_t)(199999 + (int32_t)(thrust - v_command[0] + v_command[1] - v_command[2]));
+            controller.outputs[2] = (uint32_t)(199999 + (int32_t)(thrust + v_command[0] - v_command[1] - v_command[2]));
+            controller.outputs[3] = (uint32_t)(199999 + (int32_t)(thrust - v_command[0] - v_command[1] + v_command[2]));
 #pragma RESET_MISRA("10.3, 12.1")
 #pragma CHECK_MISRA("-11.3")
             controller.pru0_cycle = PRU0_CTRL.CYCLE - cycle;
             controller.pru0_stall = PRU0_CTRL.STALL - stall;
 #pragma RESET_MISRA("11.3")
 
-            send_event(MST_5);
-            send_event(MST_15);
+            send_event(EVT_PID_OUTPUT);
+            send_event(EVT_DEBUG);
             break;
         /* STOP */
         case EVT_CONTROLLER_STOP:
@@ -104,7 +103,7 @@ void main(void) {
             break;
         case EVT_CLEAR_ARMED:
             clear_armed();
-            for(int i =0; i < 7; i++) {
+            for(i = 0u; i < 7; i++) {
               pid_reset(&pids[i]);
             }
             break;
@@ -145,7 +144,7 @@ void clear_armed(void) {
     controller.outputs[1] = 179999u;                /* Load motor arming value              */
     controller.outputs[2] = 179999u;                /* Load motor arming value              */
     controller.outputs[3] = 179999u;                /* Load motor arming value              */
-    send_event(MST_5);                              /* Commit motor arming values           */
+    send_event(EVT_PID_OUTPUT);                     /* Commit motor arming values           */
     CT_ECAP.ECCLR  = 0xffU;                         /* Clear ECAP interrput flags           */
     CT_ECAP.TSCTR = 0U;                             /* Reset the counter                    */
     CT_INTC.SICR_bit.STS_CLR_IDX = ECAP_TIMER;      /* Clear PRU interrput flag             */
