@@ -5,24 +5,24 @@ use anyhow::{Context, Result};
 
 use std::fs::File;
 
+const MOTORS_FW: &str = "/lib/firmware/motor.bin";
+const PID_FW: &str = "/lib/firmware/controller.bin";
+
 /// PID controller parameters
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct Pid {
-    /// PID proportional gain
-    pub kp: i32,
-    /// PID integral gain
-    pub ki: i32,
-    /// PID derivative gain
-    pub kd: i32,
+    /// PID input gains
+    pub a: [f32; 3],
+    /// PID output gains
+    pub b: [f32; 2],
 }
 
 impl Default for Pid {
     fn default() -> Self {
         Pid {
-            kp: 0,
-            ki: 0,
-            kd: 0,
+            a: [0.; 3],
+            b: [0.; 2],
         }
     }
 }
@@ -31,25 +31,25 @@ impl Default for Pid {
 /// This structure should only be allocated once by the PRU controller.
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-struct Controller {
+struct PruSharedMem {
     /// PID controller inputs: Roll, Pitch, Yaw, Thrust, angular velocities
-    pub input: [VolatileCell<i32>; 7],
+    pub pid_input: [VolatileCell<f32>; 7],
     /// PID controller outputs: Motor[1-4] duty cycles
-    pub output: [VolatileCell<u32>; 4],
+    pub pid_output: [VolatileCell<u32>; 4],
     /// PID controller parameters
-    pub pid: [VolatileCell<Pid>; 7],
+    pub pid_config: [VolatileCell<Pid>; 7],
     /// For debug purpose: number of cycles recorded by a PRU
     pub cycle: VolatileCell<u32>,
     /// For debug purpose: number of stall cycles recorded by a PRU
     pub stall: VolatileCell<u32>,
 }
 
-impl Default for Controller {
+impl Default for PruSharedMem {
     fn default() -> Self {
-        Controller {
-            input: [VolatileCell::new(-20_000); 7],
-            output: [VolatileCell::new(179_999); 4],
-            pid: [VolatileCell::new(Default::default()); 7],
+        PruSharedMem {
+            pid_input: [VolatileCell::new(0.0); 7],
+            pid_output: [VolatileCell::new(179_999); 4],
+            pid_config: [VolatileCell::new(Default::default()); 7],
             cycle: VolatileCell::new(0),
             stall: VolatileCell::new(0),
         }
@@ -75,15 +75,15 @@ const CHANNEL_MAP: [(Channel, Host); 4] = [
 ];
 
 /// Interface between the Linux part and the PRUs subsystems.
-pub struct PruController<'a> {
+pub struct Controller<'a> {
     pru: Pruss<'a>,
-    shared_mem: &'a mut Controller,
+    shared_mem: &'a mut PruSharedMem,
     status_evt: EvtoutIrq,
     debug_evt: EvtoutIrq,
     running: bool,
 }
 
-impl<'a> PruController<'a> {
+impl<'a> Controller<'a> {
     /// Create a new instance of the PRU controller with default PID parameters
     pub fn new() -> Result<Self> {
         // Init PRU events
@@ -95,16 +95,16 @@ impl<'a> PruController<'a> {
         let mut pru = Pruss::new(&int_conf).context("Intanciating PRUSS")?;
 
         // Init PRU shared mem
-        let controller = pru.dram2.alloc(Controller::default());
+        let shared_mem = pru.dram2.alloc(PruSharedMem::default());
         // Use transmute to extend the lifetime. It is ok because pru has the
         // lifetime 'a and the controller ref has the same lifetime.
-        // Moreover, the ref is not visible outside of the PruController
-        let shared_mem = unsafe { std::mem::transmute(controller) };
+        // Moreover, the ref is not visible outside of the Controller
+        let shared_mem = unsafe { std::mem::transmute(shared_mem) };
 
         let status_evt = pru.intc.register_irq(Evtout::E0);
         let debug_evt = pru.intc.register_irq(Evtout::E1);
 
-        Ok(PruController {
+        Ok(Controller {
             pru,
             shared_mem,
             status_evt,
@@ -114,27 +114,28 @@ impl<'a> PruController<'a> {
     }
 
     pub fn set_pid_configs(&mut self, pid_configs: [Pid; 7]) {
+        // equivalent to memcpy
         unsafe {
-            self.shared_mem.pid = std::mem::transmute(pid_configs);
+            self.shared_mem.pid_config = std::mem::transmute(pid_configs);
         }
     }
 
     /// Start the PRU (load and launch firmwares)
     pub fn start(&mut self) -> Result<()> {
         // Load PRU code
-        let mut controller_bin = File::open("/lib/firmware/controller.bin")
-            .context("Opening PID controller firmware")?;
-        let mut motor_bin = File::open("/lib/firmware/motor.bin")
-            .context("Opening ESC controller firmware")?;
+        let mut pid_fw =
+            File::open(PID_FW).context("Opening PID controller firmware")?;
+        let mut motor_fw =
+            File::open(MOTORS_FW).context("Opening ESC controller firmware")?;
         let mut contoller_code = self
             .pru
             .pru0
-            .load_code(&mut controller_bin)
+            .load_code(&mut pid_fw)
             .context("Loading PID controller firmware")?;
         let mut motor_code = self
             .pru
             .pru1
-            .load_code(&mut motor_bin)
+            .load_code(&mut motor_fw)
             .context("Loading ESC controller firmware")?;
         unsafe {
             contoller_code.run();
@@ -178,13 +179,34 @@ impl<'a> PruController<'a> {
         dbg!(self.shared_mem.stall.get());
     }
 
+    /// Set speed for the given motor
+    pub fn set_motor_speed(&mut self, motor: usize, speed: u32) -> Result<()> {
+        if motor > 3 {
+            return Err(())
+                .ok()
+                .context(format!("Cannot set speed for motor {}", motor));
+        }
+        if speed < 199_999 || speed > 299_999 {
+            return Err(()).ok().context(format!(
+                "Cannot set motor {} speed to {} range is [199999;299999]",
+                motor, speed
+            ));
+        }
+        self.shared_mem.pid_output[motor].set(speed);
+        self.pru.intc.send_sysevt(Sysevt::S21);
+        Ok(())
+    }
+
     /// Send new values to the PID controller
     /// New values will be processed only if the motor are armed
-    pub fn set_pid_inputs(&mut self, inputs: [i32; 4]) {
-        self.shared_mem.input[3].set(inputs[0]);
-        self.shared_mem.input[4].set(inputs[1]);
-        self.shared_mem.input[5].set(inputs[2]);
-        self.shared_mem.input[6].set(inputs[3]);
+    pub fn set_pid_inputs(&mut self, inputs: [f32; 7]) {
+        self.shared_mem.pid_input[0].set(inputs[0]);
+        self.shared_mem.pid_input[1].set(inputs[1]);
+        self.shared_mem.pid_input[2].set(inputs[2]);
+        self.shared_mem.pid_input[3].set(inputs[3]);
+        self.shared_mem.pid_input[4].set(inputs[4]);
+        self.shared_mem.pid_input[5].set(inputs[5]);
+        self.shared_mem.pid_input[6].set(inputs[6]);
         self.pru.intc.send_sysevt(Sysevt::S18);
     }
 
@@ -203,13 +225,97 @@ impl<'a> PruController<'a> {
     /// The `handle_event` function should return false after this event.
     pub fn stop(&mut self) {
         if self.running {
-            self.pru.intc.send_sysevt(Sysevt::S17);
+            self.pru.intc.send_sysevt(Sysevt::S16);
         }
     }
 }
 
-impl<'a> Drop for PruController<'a> {
+impl<'a> Drop for Controller<'a> {
     fn drop(&mut self) {
         self.stop()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mio::{Events, Interest, Poll, Token};
+    use std::thread;
+    use std::time::Duration;
+
+    #[test]
+    fn test_motors() {
+        const MOTOR_EVENT_MAP: [(Sysevt, Channel); 4] = [
+            (Sysevt::S20, Channel::C2), /* MOTOR_STATUS */
+            (Sysevt::S16, Channel::C1), /* MOTOR_STOP */
+            (Sysevt::S21, Channel::C1), /* PID_OUTPUT */
+            (Sysevt::S31, Channel::C3), /* DEBUG */
+        ];
+        const MOTOR_CHANNEL_MAP: [(Channel, Host); 3] = [
+            (Channel::C1, Host::Pru1),    /* PRU1 */
+            (Channel::C2, Host::Evtout0), /* HOST */
+            (Channel::C3, Host::Evtout1), /* HOST_DEBUG */
+        ];
+
+        let mut controller = Controller::new().unwrap();
+
+        // Configuring PRU subsystem
+        let mut conf = IntcConfig::new_empty();
+        conf.map_sysevts_to_channels(&MOTOR_EVENT_MAP);
+        conf.map_channels_to_hosts(&MOTOR_CHANNEL_MAP);
+        conf.auto_enable_sysevts();
+        conf.auto_enable_hosts();
+
+        controller.pru.intc.map_interrupts(&conf);
+
+        // Interruption event catching
+        let mut poll = Poll::new().context("Creating event poller").unwrap();
+        let mut events = Events::with_capacity(8);
+        const PRU_STATUS: Token = Token(0);
+        poll.registry()
+            .register(
+                controller.register_pru_evt(),
+                PRU_STATUS,
+                Interest::READABLE,
+            )
+            .context("Regitering pru status event")
+            .unwrap();
+
+        // Start PRU motors
+        controller.start().unwrap();
+
+        // Upon start, PRU motors should send an event
+        poll.poll(&mut events, Some(Duration::from_millis(100)))
+            .context("Waiting for pru motors status")
+            .unwrap();
+        for event in events.iter() {
+            assert_eq!(PRU_STATUS, event.token());
+        }
+        assert!(controller.handle_event());
+        controller.pru.intc.clear_sysevt(Sysevt::S20); // Rearm interrupt for mock
+
+        println!("Motor started");
+        thread::sleep(Duration::from_secs(1));
+
+        for i in 0..4 {
+            thread::sleep(Duration::from_secs(1));
+            println!("Starting lso want to chmotor {}", i);
+            controller.set_motor_speed(i, 240_000).unwrap();
+            thread::sleep(Duration::from_secs(3));
+            controller.set_motor_speed(i, 199_999).unwrap();
+        }
+
+        println!("Stopping motor...");
+        // Send stop event
+        controller.stop();
+        // Wait for acknowledge
+        poll.poll(&mut events, Some(Duration::from_millis(100)))
+            .context("Waiting for pru motors status")
+            .unwrap();
+        for event in events.iter() {
+            assert_eq!(PRU_STATUS, event.token());
+        }
+        assert!(!controller.handle_event());
+        println!("Motor stopped");
     }
 }

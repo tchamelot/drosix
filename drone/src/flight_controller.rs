@@ -1,4 +1,4 @@
-use crate::controller::{Pid, PruController};
+use crate::controller::{Controller, Pid};
 use crate::sensor::Sensors;
 
 use mio::{Events, Interest, Poll, Token};
@@ -15,45 +15,38 @@ const CONTROLLER: Token = Token(1);
 
 const PID_CONF: [Pid; 7] = [
     Pid {
-        kp: 0,
-        ki: 0,
-        kd: 0,
+        a: [0.0; 3],
+        b: [0.0; 2],
     }, // Roll
     Pid {
-        kp: 0,
-        ki: 0,
-        kd: 0,
+        a: [0.0; 3],
+        b: [0.0; 2],
     }, // Pitch
     Pid {
-        kp: 0,
-        ki: 0,
-        kd: 0,
+        a: [0.0; 3],
+        b: [0.0; 2],
     }, // Yaw
     Pid {
-        kp: 0,
-        ki: 0,
-        kd: 0,
+        a: [0.0; 3],
+        b: [0.0; 2],
     }, // Thrust
     Pid {
-        kp: 0,
-        ki: 0,
-        kd: 0,
+        a: [0.0; 3],
+        b: [0.0; 2],
     }, // Roll'
     Pid {
-        kp: 0,
-        ki: 0,
-        kd: 0,
+        a: [0.0; 3],
+        b: [0.0; 2],
     }, // Pitch'
     Pid {
-        kp: 0,
-        ki: 0,
-        kd: 0,
+        a: [0.0; 3],
+        b: [0.0; 2],
     },
 ]; // Yaw'
 
 pub struct FlightController<'a> {
     sensors: Sensors,
-    controller: PruController<'a>,
+    controller: Controller<'a>,
     server_rx: Receiver<[f64; 4]>,
     server_tx: Sender<[f64; 3]>,
 }
@@ -64,7 +57,7 @@ impl<'a> FlightController<'a> {
         server_tx: Sender<[f64; 3]>,
     ) -> Result<Self> {
         let sensors = Sensors::new()?;
-        let controller = PruController::new()?;
+        let controller = Controller::new()?;
         Ok(Self {
             sensors,
             controller,
@@ -119,15 +112,19 @@ impl<'a> FlightController<'a> {
     fn fly(&mut self) -> Result<()> {
         let measures = self.sensors.handle_imu_event()?;
 
+        let mut inputs = [
+            (-measures.euler[0]) as f32, // p_measure_x
+            (-measures.euler[1]) as f32, // p_measure_y
+            (-measures.euler[2]) as f32, // p_measure_z
+            (0) as f32,                  // thrust
+            (-measures.gyro[0]) as f32,  // v_measure_x
+            (-measures.gyro[1]) as f32,  // v_measure_y
+            (-measures.gyro[2]) as f32,  // v_measure_z
+        ];
         if let Some(command) = self.server_rx.try_iter().last() {
-            // For the moment no feedback / closed loop
-            let error = [
-                (command[0] * 1000.0) as i32,
-                (command[1]) as i32,
-                (command[2]) as i32,
-                (command[3]) as i32,
-            ];
-            self.controller.set_pid_inputs(error);
+            println!("{:?}", command);
+            inputs[3] = inputs[3] + (command[0] / 200.0) as f32;
+            self.controller.set_pid_inputs(inputs);
         }
 
         let _ = self.server_tx.send(measures.euler);
