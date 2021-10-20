@@ -31,7 +31,9 @@ void main(void) {
         switch(check_event1()) {
         case EVT_PWM_STEP:
             CT_IEP.TMR_CMP_STS = 0x1U;
-            /* send_event(EVT_DEBUG); */
+            if(controller.debug_location & DEBUG_PWM_STEP) {
+              send_event(EVT_DEBUG);
+            }
             set_pins(ALL_MOTORS);
             break;
         /* STOP */
@@ -40,7 +42,6 @@ void main(void) {
             break;
         /* New data */
         case EVT_PID_OUTPUT:
-            /* send_event(EVT_DEBUG); */
             read_motor_cmd(duty_cycles);
             break;
         /* No event yet */

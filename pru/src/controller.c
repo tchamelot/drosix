@@ -78,12 +78,21 @@ void main(void) {
             controller.outputs[3] = (uint32_t)(199999 + (int32_t)(thrust - v_command[0] - v_command[1] + v_command[2]));
 #pragma RESET_MISRA("10.3, 12.1")
 #pragma CHECK_MISRA("-11.3")
-            controller.pru0_cycle = PRU0_CTRL.CYCLE - cycle;
-            controller.pru0_stall = PRU0_CTRL.STALL - stall;
+            controller.cycle = PRU0_CTRL.CYCLE - cycle;
+            controller.stall = PRU0_CTRL.STALL - stall;
 #pragma RESET_MISRA("11.3")
 
             send_event(EVT_PID_OUTPUT);
             send_event(EVT_DEBUG);
+            if(controller.debug_location & DEBUG_PID_LOOP) {
+              controller.p_pid[0] =  v_setpoint[0];
+              controller.p_pid[1] =  v_setpoint[1];
+              controller.p_pid[2] =  v_setpoint[2];
+              controller.v_pid[0] =  v_command[0];
+              controller.v_pid[1] =  v_command[1];
+              controller.v_pid[2] =  v_command[2];
+              send_event(EVT_DEBUG);
+            }
             break;
         /* STOP */
         case EVT_CONTROLLER_STOP:
@@ -96,6 +105,10 @@ void main(void) {
         /* New data */
         case EVT_PID_NEW_DATA:
             /* handle new data */
+#pragma CHECK_MISRA("-11.3")
+            cycle = PRU0_CTRL.CYCLE;
+            stall = PRU0_CTRL.STALL;
+#pragma CHECK_MISRA("+11.3")
             p_error[0] = controller.inputs[0];
             p_error[1] = controller.inputs[1];
             p_error[2] = controller.inputs[2];
@@ -103,6 +116,13 @@ void main(void) {
             v_measure[0] = controller.inputs[4];
             v_measure[1] = controller.inputs[5];
             v_measure[2] = controller.inputs[6];
+#pragma CHECK_MISRA("-11.3")
+            controller.cycle = PRU0_CTRL.CYCLE - cycle;
+            controller.stall = PRU0_CTRL.STALL - stall;
+#pragma CHECK_MISRA("+11.3")
+            if(controller.debug_location & DEBUG_PID_NEW_DATA) {
+              send_event(EVT_DEBUG);
+            }
             break;
         case EVT_SET_ARMED:
             set_armed();

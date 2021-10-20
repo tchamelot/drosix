@@ -1,5 +1,6 @@
 #ifndef __DROSIX_H__
 #define __DROSIX_H__
+#include <stdint.h>
 #include "util.h"
 #pragma RESET_MISRA("all")
 
@@ -35,12 +36,19 @@ struct pid_parameter_t {
 };
 
 struct controller_t {
-    volatile float inputs[7];
-    volatile uint32_t outputs[4];
-    volatile struct pid_parameter_t parameter[7];
-    volatile uint32_t pru0_cycle;
-    volatile uint32_t pru0_stall;
+    float inputs[7];
+    uint32_t outputs[4];
+    struct pid_parameter_t parameter[7];
+    uint32_t debug_location;
+    float p_pid[3];
+    float v_pid[3];
+    uint32_t cycle;
+    uint32_t stall;
 };
+
+#define DEBUG_PID_LOOP      (1 << 0)
+#define DEBUG_PID_NEW_DATA  (1 << 1)
+#define DEBUG_PWM_STEP      (1 << 2)
 
 #pragma DATA_SECTION(controller, ".sdata")
 volatile far struct controller_t controller;
