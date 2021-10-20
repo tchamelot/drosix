@@ -1,5 +1,6 @@
 #pragma CHECK_MISRA("none")
 #include <stdint.h>
+#include <string.h>
 #include <am335x/pru_ctrl.h>
 #include <am335x/pru_cfg.h>
 #include <am335x/pru_intc.h>
@@ -19,15 +20,20 @@ void main(void) {
     uint32_t i;
     uint8_t run = 1U;
     struct pid_t pids[7];
-    float p_error[3] = {0.0, 0.0, 0.0};
-    float v_measure[3] = {0.0, 0.0, 0.0};
-    float v_setpoint[3] = {0.0, 0.0, 0.0};
-    float v_command[3] = {0.0, 0.0, 0.0};
+    float p_error[3];
+    float v_measure[3];
+    float v_setpoint[3];
+    float v_command[3];
     int32_t thrust = 0;
 
     /* performance */
     uint32_t cycle = 0U;
     uint32_t stall = 0U;
+
+    memset(p_error, 0, sizeof(p_error));
+    memset(v_measure, 0, sizeof(v_measure));
+    memset(v_setpoint, 0, sizeof(v_setpoint));
+    memset(v_command, 0, sizeof(v_command));
 
     CT_CFG.SYSCFG_bit.STANDBY_INIT = 0U;    /* enable OCP master port */
 
