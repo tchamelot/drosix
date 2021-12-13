@@ -32,13 +32,19 @@ impl Default for Pid {
 /// This structure should only be allocated once by the PRU controller.
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-struct PruSharedMem {
+pub struct PruSharedMem {
     /// PID controller inputs: Roll, Pitch, Yaw, Thrust, angular velocities
     pub pid_input: [VolatileCell<f32>; 7],
     /// PID controller outputs: Motor[1-4] duty cycles
     pub pid_output: [VolatileCell<u32>; 4],
     /// PID controller parameters
     pub pid_config: [VolatileCell<Pid>; 7],
+    /// For debug purpose: indicates which event should trigger a debug event
+    pub debug_location: VolatileCell<u32>,
+    /// For debug purpose: position PID outputs
+    pub p_pid: [VolatileCell<f32>; 3],
+    /// For debug purpose: speed PID outputs
+    pub v_pid: [VolatileCell<f32>; 3],
     /// For debug purpose: number of cycles recorded by a PRU
     pub cycle: VolatileCell<u32>,
     /// For debug purpose: number of stall cycles recorded by a PRU
@@ -51,11 +57,18 @@ impl Default for PruSharedMem {
             pid_input: [VolatileCell::new(0.0); 7],
             pid_output: [VolatileCell::new(179_999); 4],
             pid_config: [VolatileCell::new(Default::default()); 7],
+            debug_location: VolatileCell::new(0),
+            p_pid: [VolatileCell::new(0.0); 3],
+            v_pid: [VolatileCell::new(0.0); 3],
             cycle: VolatileCell::new(0),
             stall: VolatileCell::new(0),
         }
     }
 }
+
+pub const DEBUG_PID_LOOP: u32 = 1 << 0;
+pub const DEBUG_PID_NEW_DATA: u32 = 1 << 1;
+pub const DEBUG_PWM_STEP: u32 = 1 << 2;
 
 const EVENT_MAP: [(Sysevt, Channel); 9] = [
     (Sysevt::S17, Channel::C0), /* CONTROLLER_STOP */
@@ -171,13 +184,11 @@ impl<'a> Controller<'a> {
         self.running
     }
 
-    /// Handle a debug event by printing the shared memory state
-    pub fn handle_debug(&mut self) {
+    /// Handle a debug event and return the current shared mem state
+    pub fn handle_debug(&mut self) -> PruSharedMem {
         self.pru.intc.clear_sysevt(Sysevt::S31);
         self.pru.intc.enable_host(Evtout::E1);
-        //dbg!(self.shared_mem.output);
-        dbg!(self.shared_mem.cycle.get());
-        dbg!(self.shared_mem.stall.get());
+        *self.shared_mem
     }
 
     /// Set speed for the given motor
@@ -219,6 +230,16 @@ impl<'a> Controller<'a> {
     /// Disarm the motor making the PID controller stop
     pub fn clear_armed(&mut self) {
         self.pru.intc.send_sysevt(Sysevt::S23);
+    }
+
+    pub fn set_debug(&mut self, dbg: u32) {
+        let dbg = self.shared_mem.debug_location.get() | dbg;
+        self.shared_mem.debug_location.set(dbg);
+    }
+
+    pub fn reset_debug(&mut self, dbg: u32) {
+        let dbg = self.shared_mem.debug_location.get() & !dbg;
+        self.shared_mem.debug_location.set(dbg);
     }
 
     /// Stop the PRU subsystems.
