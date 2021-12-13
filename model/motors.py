@@ -21,7 +21,7 @@ def motors_update(t, x, u, params={}):
     cr = params['motor']['cr']       # Motor speed constant
     wb = params['motor']['wb']      # Motor base speed
 
-    u = np.clip(u, 0, 1)
+    u = np.clip(u / 199999, 0, 1)
     accel = [(cr * throttle + wb - speed) / tm for throttle, speed in zip(u, x)]
 
     return accel

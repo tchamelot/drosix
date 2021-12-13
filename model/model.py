@@ -83,21 +83,23 @@ def main():
     # pid tuning
     # kph, tih, tdh = controller.tune_pid(
     #     drone_hover,
-    #     (   ('drone_hover.u1', 'pid.y'),
+    #     (('drone_hover.u1', 'pid.y'),
     #         ('drone_hover.u2', '-pid.y'),
     #         ('drone_hover.u3', '-pid.y'),
     #         ('drone_hover.u4', 'pid.y'),
     #         ('pid.e', '-drone_hover.wx')),
-    #         ('drone_hover.wx'),
-    #         t,
-    #         wx,
-    #         [(0, 10), (30,50), (500, 1000)])
-    kph, tih, tdh = [0.335, 40.60, 993.04]
+    #     ('drone_hover.wx'),
+    #     t,
+    #     wx,
+    #     [(1e5, 1e6), (1e3, 1e5), (0, 0)])
+    kph, tih, tdh = [402599, 93059, 0]
 
     # kpz, tiz, tdz = pid_tune_z(drone_hover)
 
     pidx = controller.pid(kph, tih, tdh, name='pid_x')
     pidy = controller.pid(kph, tih, tdh, name='pid_y')
+    pid = ct.ss2tf(pidx.sample(0.01, 'bilinear'))
+    print(pid.num, pid.den)
     # pidz = controller.pid(kpz, tiz, tdz, name='pid_z')
 
     drone_pid_w = ct.InterconnectedSystem(
@@ -129,14 +131,15 @@ def main():
 
     plot_model(drone_pid_w, t, np.array([wx, wy]))
 
-    # kphp, tihp, tdhp = controller.tune_pid(
-    #     drone_pid_w,
-    #     (   ('drone_pid_w.twx', 'pid.y'),
-    #         ('pid.e', '-drone_pid_w.tx')),
-    #         ('drone_pid_w.tx'),
-    #     t, x,
-    #     [(1e-1, 1e1), (0, 0), (0, 0)])
-    kphp, tihp, tdhp = [1.77, 0, 0]
+    kphp, tihp, tdhp = controller.tune_pid(
+        drone_pid_w,
+        (('drone_pid_w.twx', 'pid.y'),
+            ('pid.e', '-drone_pid_w.tx')),
+            ('drone_pid_w.tx'),
+        t, x,
+        [(1e0, 1e1), (0, 0), (0, 0)])
+
+    # kphp, tihp, tdhp = [1.77, 0, 0]
 
     pidxp = controller.pid(kphp, tihp, tdhp, name='pid_xp')
     pidyp = controller.pid(kphp, tihp, tdhp, name='pid_yp')
