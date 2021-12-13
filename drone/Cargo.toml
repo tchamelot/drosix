@@ -7,12 +7,12 @@ edition = "2018"
 [dependencies]
 # Flight controller
 hal                 = { version = "0.3", package = "linux-embedded-hal" }
-mio                 = { version = "0.7", features = ["os-poll", "os-util"] } 
+mio                 = { version = "0.7", features = ["os-poll", "os-ext", "net"] } 
 prusst              = { git = "https://github.com/tchamelot/prusst" }
-gpio-cdev           = { git = "https://github.com/tchamelot/gpio-cdev" }
+gpio-cdev           = "0.5"
 
 # Server
-tokio               = { version = "0.2", features = ["macros", "sync"] }
+tokio               = { version = "1.13", features = ["macros", "rt", "sync"] }
 futures             = { version = "0.3", features = ["alloc"], default-features = false }
 warp                = "0.2"
 bytes               = "0.5"

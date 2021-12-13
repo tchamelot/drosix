@@ -1,7 +1,8 @@
+use anyhow::{Context, Result};
 use prusst::util::VolatileCell;
 use prusst::{Channel, Evtout, EvtoutIrq, Host, IntcConfig, Pruss, Sysevt};
+use std::os::unix::io::{AsRawFd, RawFd};
 
-use anyhow::{Context, Result};
 
 use std::fs::File;
 
@@ -145,13 +146,13 @@ impl<'a> Controller<'a> {
     }
 
     /// Return a polling event linked to PRU status change interrupt
-    pub fn register_pru_evt(&mut self) -> &mut EvtoutIrq {
-        &mut self.status_evt
+    pub fn register_pru_evt(&self) -> RawFd {
+        self.status_evt.as_raw_fd()
     }
 
     /// Return a polling event linked to PRU debug interrupt
-    pub fn register_pru_debug(&mut self) -> &mut EvtoutIrq {
-        &mut self.debug_evt
+    pub fn register_pru_debug(&self) -> RawFd {
+        self.debug_evt.as_raw_fd()
     }
 
     /// Handle a status change event

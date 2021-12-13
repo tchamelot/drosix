@@ -1,12 +1,12 @@
-use futures::{select, FutureExt, Stream, StreamExt, TryStreamExt};
 use message::{DrosixMessage, Readable, Writable};
-use std::sync::mpsc;
+use futures::{FutureExt, Stream, TryStreamExt};
+// use std::sync::mpsc;
 use std::{
-    collections::{HashMap, HashSet}, io::Error as IoError, net::{IpAddr, Ipv4Addr, SocketAddr}, str::FromStr, sync::Arc
+    collections::{HashMap, HashSet}, io::Error as IoError, net::SocketAddr, str::FromStr, sync::Arc
 };
-use tokio::sync::{
-    broadcast::{Receiver, RecvError, Sender}, RwLock
-};
+use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::RwLock;
+use tokio::select;
 use warp::Filter;
 use webrtc_unreliable as webrtc;
 
@@ -139,8 +139,8 @@ impl RtcServer {
                     Ok(status) => self.receive(status, &buffer).await,
                     _ => (),
                 },
-                data = self.measures.next().fuse() => match data {
-                    Some(Ok(data)) => self.send(data).await,
+                data = self.measures.recv() => match data {
+                    Some(answer) => self.send(answer).await,
                     _ => (),
                 }
             }
@@ -157,8 +157,8 @@ impl RtcServer {
                                                 }))
                       .await
         {
-            Ok(mut resp) => Ok(resp),
-            Err(err) => Err(warp::reject()),
+            Ok(resp) => Ok(resp),
+            Err(_) => Err(warp::reject()),
         }
     }
 
@@ -229,12 +229,12 @@ impl RtcServer {
     }
 }
 
-#[tokio::main]
 pub async fn server(measures: Sender<[f64; 3]>,
                     commands: mpsc::Sender<[f64; 4]>) {
+#[tokio::main(flavor = "current_thread")]
     let rtc_address = SocketAddr::from_str(RTC_ADDR).unwrap();
     let rtc_server =
-        RtcServer::new(rtc_address, measures.subscribe(), commands).await
+        RtcServer::new(rtc_address, measures, commands).await
                                                                    .unwrap();
     let rtc_endpoint = rtc_server.endpoint();
     let rtc_status = rtc_server.status();

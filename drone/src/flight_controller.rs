@@ -1,10 +1,11 @@
 use crate::controller::{Controller, Pid};
 use crate::sensor::Sensors;
 
+use mio::unix::SourceFd;
 use mio::{Events, Interest, Poll, Token};
 
-use std::sync::mpsc::Receiver;
-use tokio::sync::broadcast::Sender;
+// use std::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use anyhow::{Context, Result};
 
@@ -49,6 +50,7 @@ pub struct FlightController<'a> {
     controller: Controller<'a>,
     server_rx: Receiver<[f64; 4]>,
     server_tx: Sender<[f64; 3]>,
+    last_cmd: Option<[f64; 4]>,
 }
 
 impl<'a> FlightController<'a> {
@@ -61,6 +63,7 @@ impl<'a> FlightController<'a> {
         Ok(Self {
             sensors,
             controller,
+            last_cmd: None,
             server_rx,
             server_tx,
         })
@@ -72,14 +75,14 @@ impl<'a> FlightController<'a> {
 
         poll.registry()
             .register(
-                self.controller.register_pru_evt(),
+                &mut SourceFd(&self.controller.register_pru_evt()),
                 CONTROLLER,
                 Interest::READABLE,
             )
             .context("Regitering controller event")?;
         poll.registry()
             .register(
-                self.sensors.register_imu_event()?,
+                &mut SourceFd(&self.sensors.register_imu_event()?),
                 IMU,
                 Interest::READABLE,
             )
@@ -121,7 +124,7 @@ impl<'a> FlightController<'a> {
             (-measures.gyro[1]) as f32,  // v_measure_y
             (-measures.gyro[2]) as f32,  // v_measure_z
         ];
-        if let Some(command) = self.server_rx.try_iter().last() {
+        if let Some(command) = self.last_cmd {
             println!("{:?}", command);
             inputs[3] = inputs[3] + (command[0] / 200.0) as f32;
             self.controller.set_pid_inputs(inputs);

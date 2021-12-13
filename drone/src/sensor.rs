@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Read;
+use std::os::unix::io::{AsRawFd, RawFd};
 
 use anyhow::{Context, Error, Result};
 
@@ -45,7 +46,7 @@ impl Sensors {
         })
     }
 
-    pub fn register_imu_event(&mut self) -> Result<&mut LineEventHandle> {
+    pub fn register_imu_event(&mut self) -> Result<RawFd> {
         let mut chip = Chip::new("/dev/gpiochip3").context("Opening GPIO")?;
         // 117 : gpiochip3 => 3*32 = 96. 117 - 96 = 21
         let pin = chip.get_line(21).context("Accessing IMU interrupt pin")?;
@@ -57,14 +58,12 @@ impl Sensors {
             )
             .context("Registering IMU interrupt")?;
         self.imu_pin = Some(pin_event);
-        self.imu_pin
-            .as_mut()
-            .ok_or_else(|| Error::msg("Registering IMU interrupt"))
+        self.imu_pin.as_ref().context("Unreachable").map(|x| x.as_raw_fd())
     }
 
     pub fn handle_imu_event(&mut self) -> Result<Odometry> {
         self.imu_pin
-            .as_ref()
+            .as_mut()
             .and_then(|pin| pin.get_event().ok())
             .context("Accessing IMU interru pin")?;
         match self.imu.dmp_all() {
