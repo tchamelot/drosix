@@ -1,4 +1,3 @@
-use message::{DrosixMessage, Readable, Writable};
 use futures::{FutureExt, Stream, TryStreamExt};
 // use std::sync::mpsc;
 use std::{
@@ -9,6 +8,9 @@ use tokio::sync::RwLock;
 use tokio::select;
 use warp::Filter;
 use webrtc_unreliable as webrtc;
+use drone::messages::{Answer, Command};
+
+use rkyv::{archived_root, ser::{serializers::AllocSerializer, Serializer}, Infallible, Deserialize};
 
 #[cfg(not(feature = "mock"))]
 const RTC_ADDR: &'static str = "192.168.6.1:3333";
@@ -106,14 +108,14 @@ impl RtcStatus {
 struct RtcServer {
     server: webrtc::Server,
     status: Arc<RwLock<RtcStatus>>,
-    measures: Receiver<[f64; 3]>,
-    commands: mpsc::Sender<[f64; 4]>,
+    measures: Receiver<Answer>,
+    commands: Sender<Command>,
 }
 
 impl RtcServer {
     async fn new(addr: SocketAddr,
-                 measures: Receiver<[f64; 3]>,
-                 commands: mpsc::Sender<[f64; 4]>)
+                 measures: Receiver<Answer>,
+                 commands: Sender<Command>)
                  -> Result<Self, IoError> {
         let server = webrtc::Server::new(addr, addr).await?;
         let status = Arc::new(RwLock::new(RtcStatus::new()));
@@ -193,14 +195,17 @@ impl RtcServer {
     async fn receive(&mut self,
                      msg_status: webrtc::MessageResult,
                      data: &[u8]) {
-        match DrosixMessage::read_from_buffer(&data[..msg_status.message_len]) {
-            Ok(DrosixMessage::ClientHello) => {
+
+        let msg = unsafe{ archived_root::<Command>(data) };
+        match msg.deserialize(&mut Infallible).unwrap() {
+            Command::ClientHello => {
                 let mut status = self.status.as_ref().write().await;
                 if let Some(id) = status.add_client(msg_status.remote_addr) {
-                    let msg =
-                        DrosixMessage::ServerHello(id).write_to_vec().unwrap();
+                    let mut serializer = AllocSerializer::<64>::default();
+                    serializer.serialize_value(&Answer::ServerHello(id)).unwrap();
+                    let bytes = serializer.into_serializer().into_inner();
                     self.server
-                        .send(&msg,
+                        .send(&bytes,
                               msg_status.message_type,
                               &msg_status.remote_addr)
                         .await
@@ -208,30 +213,32 @@ impl RtcServer {
                     println!("New client id {}", id);
                 }
             },
-            Ok(DrosixMessage::Control(v)) => {
+            Command::Flight(v) => {
                 let status = self.status.as_ref().read().await;
                 if Some(msg_status.remote_addr) == status.control_client {
-                    self.commands.send(v);
+                    self.commands.send(Command::Flight(v)).await;
                 }
             },
             _ => (),
         };
     }
 
-    async fn send(&mut self, data: [f64; 3]) {
+    async fn send(&mut self, answer: Answer) {
         let status = self.status.as_ref().read().await;
-        let msg = DrosixMessage::Measure(data).write_to_vec().unwrap();
+        let mut serializer = AllocSerializer::<64>::default();
+        serializer.serialize_value(&answer).unwrap();
+        let bytes = serializer.into_serializer().into_inner();
         for client in status.measure_clients.iter() {
             let _ = self.server
-                        .send(&msg, webrtc::MessageType::Binary, client)
+                        .send(&bytes, webrtc::MessageType::Binary, client)
                         .await;
         }
     }
 }
 
-pub async fn server(measures: Sender<[f64; 3]>,
-                    commands: mpsc::Sender<[f64; 4]>) {
 #[tokio::main(flavor = "current_thread")]
+pub async fn server(measures: Receiver<Answer>,
+                    commands: Sender<Command>) {
     let rtc_address = SocketAddr::from_str(RTC_ADDR).unwrap();
     let rtc_server =
         RtcServer::new(rtc_address, measures, commands).await

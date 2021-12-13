@@ -1,4 +1,5 @@
 use crate::controller::{Controller, Pid};
+use crate::messages::{Answer, Command};
 use crate::sensor::Sensors;
 
 use mio::unix::SourceFd;
@@ -48,15 +49,16 @@ const PID_CONF: [Pid; 7] = [
 pub struct FlightController<'a> {
     sensors: Sensors,
     controller: Controller<'a>,
-    server_rx: Receiver<[f64; 4]>,
-    server_tx: Sender<[f64; 3]>,
+    pids: [Pid; 7],
     last_cmd: Option<[f64; 4]>,
+    server_rx: Receiver<Command>,
+    server_tx: Sender<Answer>,
 }
 
 impl<'a> FlightController<'a> {
     pub fn new(
-        server_rx: Receiver<[f64; 4]>,
-        server_tx: Sender<[f64; 3]>,
+        server_rx: Receiver<Command>,
+        server_tx: Sender<Answer>,
     ) -> Result<Self> {
         let sensors = Sensors::new()?;
         let controller = Controller::new()?;
@@ -64,6 +66,7 @@ impl<'a> FlightController<'a> {
             sensors,
             controller,
             last_cmd: None,
+            pids: [Default::default(); 7],
             server_rx,
             server_tx,
         })
@@ -107,6 +110,7 @@ impl<'a> FlightController<'a> {
                     _ => (),
                 }
             }
+            self.handle_command();
         }
 
         Ok(())
@@ -129,9 +133,40 @@ impl<'a> FlightController<'a> {
             inputs[3] = inputs[3] + (command[0] / 200.0) as f32;
             self.controller.set_pid_inputs(inputs);
         }
-
-        let _ = self.server_tx.send(measures.euler);
-
         Ok(())
+    }
+
+    fn handle_command(&mut self) {
+        match self.server_rx.try_recv() {
+            Ok(Command::Flight(cmd)) => {
+                self.last_cmd = Some(cmd);
+            },
+            Ok(Command::SetPid {
+                pid,
+                config,
+            }) => {
+                self.pids[pid] = config;
+                self.server_tx.blocking_send(Answer::Pid {
+                    pid,
+                    config: self.pids[pid],
+                });
+            },
+            Ok(Command::CommitPid) => {
+                self.controller.set_pid_configs(self.pids);
+            },
+            Ok(Command::GetPid(pid)) => {
+                self.server_tx.blocking_send(Answer::Pid {
+                    pid,
+                    config: self.pids[pid],
+                });
+            },
+            Ok(Command::SubscribeDebug(dbg)) => self.controller.set_debug(dbg),
+            Ok(Command::UnsubscribeDebug(dbg)) => {
+                self.controller.reset_debug(dbg)
+            },
+            Ok(Command::Arm) => self.controller.set_armed(),
+            Ok(Command::Disarm) => self.controller.clear_armed(),
+            _ => {},
+        }
     }
 }

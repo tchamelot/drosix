@@ -3,6 +3,7 @@ use prusst::util::VolatileCell;
 use prusst::{Channel, Evtout, EvtoutIrq, Host, IntcConfig, Pruss, Sysevt};
 use std::os::unix::io::{AsRawFd, RawFd};
 
+use rkyv::{Archive, Deserialize, Serialize};
 
 use std::fs::File;
 
@@ -11,7 +12,7 @@ const PID_FW: &str = "/lib/firmware/controller.bin";
 
 /// PID controller parameters
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Archive, Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
 pub struct Pid {
     /// PID input gains
     pub a: [f32; 3],

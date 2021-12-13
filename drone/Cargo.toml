@@ -18,6 +18,7 @@ warp                = "0.2"
 bytes               = "0.5"
 webrtc-unreliable   = { git = "https://github.com/tchamelot/webrtc-unreliable.git" }
 message             = { path = "../message" }
+rkyv                = "0.7"
 
 # Remote controller
 gilrs = "0.8"
