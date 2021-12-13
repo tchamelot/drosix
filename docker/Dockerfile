@@ -37,7 +37,10 @@ RUN apt-get update && \
     locales \
     whois \
     neovim \
-    libc6-dev-i386
+    libc6-dev-i386 \
+    openssl \
+    libssl-dev \
+    pkg-config
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -75,6 +78,11 @@ RUN curl https://sh.rustup.rs -sSf | bash -s -- -y \
     --target armv7-unknown-linux-gnueabihf \
     --profile minimal \
     -c clippy rustfmt rust-src rls
+
+ENV PATH=/home/worker/.cargo/bin:$PATH
+
+RUN cargo install trunk
+RUN cargo install wasm-bindgen-cli
 
 RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
 RUN echo '[target.armv7-unknown-linux-gnueabihf]\nlinker = "/home/worker/output/host/bin/arm-drosix-linux-gnueabihf-gcc"' >> $HOME/.cargo/config
