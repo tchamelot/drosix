@@ -18,6 +18,7 @@ docker-run: $(DOCKER_IMAGE) $(DROSIX_DL) $(DROSIX_OUTPUT) $(CARGO_REGISTRY)
 		-v $(DROSIX_OUTPUT):/home/worker/output \
 		-v $(CARGO_REGISTRY):/home/worker/.cargo/registry \
 		-v $(TOP_PATH)/images:/home/worker/output/images \
+		-p 8080:8080 \
 		$(DOCKER_IMAGE)
 
 $(DOCKER_IMAGE): $(DOCKER_BUILD_STAMP)
