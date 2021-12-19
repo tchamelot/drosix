@@ -1,4 +1,4 @@
-use webapp::App;
+use drosix_webapp::App;
 use yew::prelude::*;
 
 fn main() {
