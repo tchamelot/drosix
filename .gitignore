@@ -16,6 +16,7 @@ build
 
 # Python
 __pycache__
+pysim_*
 
 # mdbook
 book/
