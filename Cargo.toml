@@ -2,6 +2,7 @@
 
 members = [
     "drone",
+    "server",
     "webapp",
-    "message",
+    "drosix-api",
 ]

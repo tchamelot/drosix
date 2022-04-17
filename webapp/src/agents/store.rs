@@ -13,7 +13,8 @@ use yew::services::resize::*;
 use yew::Callback;
 
 use crate::services::webrtc_binding::*;
-use message::DrosixMessage;
+// use message::DrosixMessage;
+type DrosixMessage = u32;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct State {
@@ -37,6 +38,10 @@ pub type ArcState = Arc<State>;
 
 #[derive(Deserialize, Serialize)]
 pub enum StoreInput {
+    Authentify {
+        user: String,
+        password: String,
+    },
     Subscribe,
     Unsubscribe,
     TakeControl,
@@ -51,7 +56,7 @@ pub enum StoreOutput {
 pub struct Store {
     link: AgentLink<Store>,
     state: ArcState,
-    webrtc: WebrtcTask,
+    // webrtc: WebrtcTask,
     webrtc_id: Option<u32>,
     api: HashMap<TaskId, FetchTask>,
     #[allow(dead_code)]
@@ -70,37 +75,40 @@ pub enum Msg {
 }
 
 impl Agent for Store {
-    type Reach = Context;
-    type Message = Msg;
     type Input = StoreInput;
+    type Message = Msg;
     type Output = StoreOutput;
+    type Reach = Context;
 
     fn create(link: AgentLink<Self>) -> Self {
         let state = Arc::new(State::default());
 
         let cb = link.callback(|control| Msg::Control(control));
-        let handler = state.as_ref().control.signal_cloned().for_each(move |u| {
-            cb.emit(u);
-            ready(())
-        });
+        let handler =
+            state.as_ref().control.signal_cloned().for_each(move |u| {
+                cb.emit(u);
+                ready(())
+            });
         spawn_local(handler);
 
-        let webrtc = WebrtcService::new().connect(
-            "api/webrtc",
-            link.callback(|data| Msg::WebrtcReceived(data)),
-            link.callback(|status| Msg::WebrtcStatus(status)),
-        );
+        // let webrtc = WebrtcService::new().connect(
+        //     "api/webrtc",
+        //     link.callback(|data| Msg::WebrtcReceived(data)),
+        //     link.callback(|status| Msg::WebrtcStatus(status)),
+        // );
         let webrtc_id = None;
 
         let api = HashMap::new();
 
-        let cb = link.callback(|size: WindowDimensions| Msg::Size((size.width, size.height)));
+        let cb = link.callback(|size: WindowDimensions| {
+            Msg::Size((size.width, size.height))
+        });
         let size_evt = ResizeService::new().register(cb);
 
         Self {
             link,
             state,
-            webrtc,
+            // webrtc,
             webrtc_id,
             api,
             size_evt,
@@ -110,25 +118,25 @@ impl Agent for Store {
     fn update(&mut self, msg: Self::Message) {
         match msg {
             Msg::WebrtcReceived(data) => match data {
-                DrosixMessage::Measure(data) => {
-                    let data = [data[0] as f32, data[1] as f32, data[2] as f32];
-                    self.state.as_ref().measures.set(data);
-                }
-                DrosixMessage::ServerHello(id) => {
-                    self.webrtc_id = Some(id);
-                    log::info!("Got id {}", id);
-                }
-                DrosixMessage::Error => log::error!("Webrtc error"),
+                // DrosixMessage::Measure(data) => {
+                //     let data = [data[0] as f32, data[1] as f32, data[2] as
+                // f32];     self.state.as_ref().measures.
+                // set(data); }
+                // DrosixMessage::ServerHello(id) => {
+                //     self.webrtc_id = Some(id);
+                //     log::info!("Got id {}", id);
+                // }
+                // DrosixMessage::Error => log::error!("Webrtc error"),
                 _ => (),
             },
             Msg::WebrtcStatus(status) => match status {
                 WebrtcStatus::Opened => {
-                    self.webrtc.send(DrosixMessage::ClientHello);
+                    // self.webrtc.send(DrosixMessage::ClientHello);
                     log::info!("Channel opened");
-                }
+                },
                 WebrtcStatus::Error => {
                     log::error!("Error in webrtc channel");
-                }
+                },
             },
             Msg::ApiStatus((task_id, status)) => {
                 if !status {
@@ -136,13 +144,13 @@ impl Agent for Store {
                     log::info!("Error while accessig api")
                 }
                 self.api.remove_entry(task_id.as_ref());
-            }
+            },
             Msg::Control(val) => {
-                self.webrtc.send(DrosixMessage::Control(val));
-            }
+                //self.webrtc.send(DrosixMessage::Control(val));
+            },
             Msg::Size(size) => {
                 self.state.as_ref().size.set(size);
-            }
+            },
         }
     }
 
@@ -152,16 +160,21 @@ impl Agent for Store {
             StoreInput::Unsubscribe => self.unsubscribe(),
             StoreInput::TakeControl => self.take_control(),
             StoreInput::ReleaseControl => self.release_control(),
+            StoreInput::Authentify {
+                user,
+                password,
+            } => self.authentify(user, password),
         }
     }
 
     fn connected(&mut self, id: HandlerId) {
-        self.link
-            .respond(id, StoreOutput::StateInstance(self.state.clone()));
+        self.link.respond(id, StoreOutput::StateInstance(self.state.clone()));
     }
 }
 
 impl Store {
+    fn authentify(&mut self, user: String, password: String) {}
+
     fn subscribe(&mut self) {
         if self.webrtc_id.is_some() {
             let request = Request::put(format!(
@@ -172,8 +185,8 @@ impl Store {
             .body(Nothing)
             .unwrap();
             let task_name = Rc::new(String::from("subscriber"));
-            if let Ok(task) =
-                FetchService::new().fetch(request, self.api_handler(task_name.clone()))
+            if let Ok(task) = FetchService::new()
+                .fetch(request, self.api_handler(task_name.clone()))
             {
                 let task_name = Rc::new(String::from("subscriber"));
                 self.api.insert(task_name, task);
@@ -183,12 +196,15 @@ impl Store {
 
     fn unsubscribe(&mut self) {
         if self.webrtc_id.is_some() {
-            let request = Request::delete(format!("/api/measure/{}", self.webrtc_id.unwrap()))
-                .body(Nothing)
-                .unwrap();
+            let request = Request::delete(format!(
+                "/api/measure/{}",
+                self.webrtc_id.unwrap()
+            ))
+            .body(Nothing)
+            .unwrap();
             let task_name = Rc::new(String::from("unsubscriber"));
-            if let Ok(task) =
-                FetchService::new().fetch(request, self.api_handler(task_name.clone()))
+            if let Ok(task) = FetchService::new()
+                .fetch(request, self.api_handler(task_name.clone()))
             {
                 self.api.insert(task_name, task);
             }
@@ -197,12 +213,15 @@ impl Store {
 
     fn take_control(&mut self) {
         if self.webrtc_id.is_some() {
-            let request = Request::get(format!("/api/control/{}", self.webrtc_id.unwrap()))
-                .body(Nothing)
-                .unwrap();
+            let request = Request::get(format!(
+                "/api/control/{}",
+                self.webrtc_id.unwrap()
+            ))
+            .body(Nothing)
+            .unwrap();
             let task_name = Rc::new(String::from("taker"));
-            if let Ok(task) =
-                FetchService::new().fetch(request, self.api_handler(task_name.clone()))
+            if let Ok(task) = FetchService::new()
+                .fetch(request, self.api_handler(task_name.clone()))
             {
                 self.api.insert(task_name, task);
             }
@@ -211,12 +230,15 @@ impl Store {
 
     fn release_control(&mut self) {
         if self.webrtc_id.is_some() {
-            let request = Request::put(format!("/api/control/{}", self.webrtc_id.unwrap()))
-                .body(Nothing)
-                .unwrap();
+            let request = Request::put(format!(
+                "/api/control/{}",
+                self.webrtc_id.unwrap()
+            ))
+            .body(Nothing)
+            .unwrap();
             let task_name = Rc::new(String::from("realeaser"));
-            if let Ok(task) =
-                FetchService::new().fetch(request, self.api_handler(task_name.clone()))
+            if let Ok(task) = FetchService::new()
+                .fetch(request, self.api_handler(task_name.clone()))
             {
                 self.api.insert(task_name, task);
             }

@@ -14,11 +14,14 @@ gpio-cdev           = "0.5"
 # Server
 tokio               = { version = "1.13", features = ["macros", "rt", "sync"] }
 futures             = { version = "0.3", features = ["alloc"], default-features = false }
-warp                = "0.2"
-bytes               = "0.5"
-webrtc-unreliable   = { git = "https://github.com/tchamelot/webrtc-unreliable.git" }
-message             = { path = "../message" }
+warp                = { version = "0.3", features = ["tls"] }
+bytes               = "1.0"
+# webrtc-unreliable   = { git = "https://github.com/tchamelot/webrtc-unreliable.git" }
+webrtc-unreliable   = "0.5"
+drosix-api          = { path = "../drosix-api" }
 rkyv                = "0.7"
+pwhash              = "1.0"
+libc                = "0.2"
 
 # Remote controller
 gilrs = "0.8"

@@ -1,3 +1,10 @@
+@import "nord.scss";
+
+* {
+  box-sizing: border-box;
+  font-family: sans-serif;
+}
+
 html, body {
     height: 100%;
     width: 100%;
@@ -38,25 +45,41 @@ li {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px;
+    padding: 0px 10px;
     width: 100%;
-    background-color: #3b4252;
+    background-color: $nord10;
+    color: $nord4;
+    font-size: 32px;
 }
 
-.nav-item {
-    padding: 0.1% 0.5%;
-    margin: 0 0.5%;
-    border: 0;
-    height: 100%;
-    text-align: center;
-    vertical-align: center;
-    background-color: #3b4252;
-    color: #d8dee9;
-    font-size: 2vh;
+.nav-links {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  margin: 0;
 }
-.nav-item:hover {
-    background-color: #434c5e;
-    border-radius: 1vh;
+
+.nav-links a {
+  color: $nord4;
+}
+
+.menu {
+  display: flex;
+  gap: 1em;
+  font-size: 24px;
+  height: 100%;
+}
+
+.menu li {
+  display: flex;
+  padding: 0 10px;
+  align-items: center;
+}
+
+.menu li:hover {
+  background-color: $nord9;
+  border-radius: 5px;
+  transition: 0.3s ease;
 }
 
 .button {
@@ -111,4 +134,48 @@ li {
     border-radius: 50%;
     background-color: black;
     z-index: 999;
+}
+
+/*RESPONSIVE NAVBAR MENU STARTS*/
+/* CHECKBOX HACK */
+input[type=checkbox]{
+  display: none;
+} 
+/*HAMBURGER MENU*/
+.hamburger {
+  display: none;
+  font-size: 24px;
+  user-select: none;
+}
+/* APPLYING MEDIA QUERIES */
+@media (max-width: 768px) {
+  .menu { 
+    display:none;
+    position: absolute;
+    background-color: $nord10;
+    right: 0;
+    left: 0;
+    top: 38px;
+    text-align: center;
+    padding: 16px 0;
+    height: auto;
+  }
+  .menu li {
+    display: block;
+    width: 100%;
+  }
+  .menu li:hover {
+    display: inline-block;
+    background-color: $nord9;
+    transition: 0.3s ease;
+  }
+  .menu li + li {
+    margin-top: 12px;
+  }
+  input[type=checkbox]:checked ~ .menu{
+    display: block;
+  }
+  .hamburger {
+    display: block;
+  }
 }

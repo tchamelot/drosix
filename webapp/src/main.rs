@@ -1,6 +1,6 @@
+use drosix_webapp::run_app;
 use drosix_webapp::App;
-use yew::prelude::*;
 
 fn main() {
-    yew::start_app::<App>();
+    run_app();
 }

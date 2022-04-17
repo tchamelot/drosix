@@ -2,14 +2,7 @@ use std::thread;
 use tokio::sync::mpsc::channel;
 
 use drone::flight_controller::FlightController;
-
-#[cfg(feature = "mock")]
-mod mock;
-mod server;
-
-#[cfg(feature = "mock")]
-use mock::drone;
-use server::server;
+use drone::server::server;
 
 fn main() {
     let (answer_tx, answer_rx) = channel(10);

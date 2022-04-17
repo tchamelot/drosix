@@ -1,5 +1,5 @@
-use crate::controller::{Controller, Pid};
-use crate::messages::{Answer, Command};
+use crate::controller::Controller;
+use drosix_api::{Answer, Command, Pid};
 use crate::sensor::Sensors;
 
 use mio::unix::SourceFd;

@@ -3,6 +3,8 @@ use prusst::util::VolatileCell;
 use prusst::{Channel, Evtout, EvtoutIrq, Host, IntcConfig, Pruss, Sysevt};
 use std::os::unix::io::{AsRawFd, RawFd};
 
+use drosix_api::Pid;
+
 use rkyv::{Archive, Deserialize, Serialize};
 
 use std::fs::File;
@@ -11,23 +13,23 @@ const MOTORS_FW: &str = "/lib/firmware/motor.bin";
 const PID_FW: &str = "/lib/firmware/controller.bin";
 
 /// PID controller parameters
-#[repr(C)]
-#[derive(Archive, Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
-pub struct Pid {
-    /// PID input gains
-    pub a: [f32; 3],
-    /// PID output gains
-    pub b: [f32; 2],
-}
-
-impl Default for Pid {
-    fn default() -> Self {
-        Pid {
-            a: [0.; 3],
-            b: [0.; 2],
-        }
-    }
-}
+// #[repr(C)]
+// #[derive(Archive, Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
+// pub struct Pid {
+//     /// PID input gains
+//     pub a: [f32; 3],
+//     /// PID output gains
+//     pub b: [f32; 2],
+// }
+// 
+// impl Default for Pid {
+//     fn default() -> Self {
+//         Pid {
+//             a: [0.; 3],
+//             b: [0.; 2],
+//         }
+//     }
+// }
 
 /// Shared memory between the Cortex-A8 and the two PRUs.
 /// This structure should only be allocated once by the PRU controller.
