@@ -17,7 +17,7 @@ futures             = { version = "0.3", features = ["alloc"], default-features 
 warp                = "0.2"
 bytes               = "0.5"
 webrtc-unreliable   = { git = "https://github.com/tchamelot/webrtc-unreliable.git" }
-message             = { path = "../message" }
+drosix-api          = { path = "../drosix-api" }
 rkyv                = "0.7"
 
 # Remote controller

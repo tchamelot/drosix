@@ -3,5 +3,5 @@
 members = [
     "drone",
     "webapp",
-    "message",
+    "drosix-api",
 ]
