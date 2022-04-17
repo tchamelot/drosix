@@ -6,11 +6,11 @@
 A quadcopter is built with four system of propulsion. The propulsion system is
 composed of a motor and a propeller mounted on it. Here we consider a propulsion
 system composed of a BLDC motor and a two blades propeller. Each propulsion
-group produces a thrust \\(T)\\ [N] and a moment \\(M\\) [N.m] such as:
+group produces a thrust \\(T\\) [N] and a moment \\(M\\) [N.m] such as:
 
 \\[\begin{aligned}
-T = C_T (\frac{N}{60})^2 D_{p}^4 \\\\
-M = C_M (\frac{N}{60})^2 D_{p}^5
+T = C_T \rho (\frac{N}{60})^2 D_{p}^4 \\\\
+M = C_M \rho (\frac{N}{60})^2 D_{p}^5
 \end{aligned}\\]
 
 where \\(N\\) represents the propeller speed [RPM], \\(D_p\\) is the propeller
@@ -166,9 +166,9 @@ The angular position is \\(\dot{\theta} = \omega\\).
     0       & 0         & 0         & 0         \\\\
     0       & 0         & 0         & 0         \\\\
     0       & 0         & 0         & 0         \\\\
-    J_xdC_T & -J_xdC_T  & -J_xdC_T  & J_xdC_T   \\\\
-    J_ydC_T & J_ydC_T   & -J_ydC_T  & -J_ydC_T  \\\\
-    J_zC_M  & J_zC_M    & -J_zC_M   & -J_zC_M
+    \frac{dC_T}{J_x} & -\frac{dC_T}{J_x} & -\frac{dC_T}{J_x} &  \frac{dC_T}{J_x}  \\\\
+    \frac{dC_T}{J_y} &  \frac{dC_T}{J_y} & -\frac{dC_T}{J_y} & -\frac{dC_T}{J_y}  \\\\
+    \frac{C_M}{J_z}  & -\frac{C_M}{J_z}  &  \frac{C_M}{J_z}  & -\frac{C_M}{J_z}
 \end{bmatrix}
 \begin{bmatrix}
     \omega_1^2 \\\\
