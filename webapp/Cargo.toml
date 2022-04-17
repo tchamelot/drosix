@@ -1,52 +1,30 @@
+cargo-features = ["per-package-target"]
 [package]
 name = "drosix-webapp"
 version = "0.1.0"
 authors = ["Thomas Chamelot <chamelot.thomas@gmail.com>"]
 edition = "2018"
+forced-target = "wasm32-unknown-unknown"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-anyhow = "1.0"
 log = "0.4"
-strum = "0.17"
-strum_macros = "0.17"
-serde = { version = "1", features = ["rc"] }
-serde_derive = "1"
-web_logger = "0.2"
-js-sys = "0.3.37"
-yew = { version = "0.14.3", features = ["web_sys"] }
-yew-router = { version = "0.11.0", features = ["web_sys"] }
-plotters = "0.2.12"
-circular-queue = "0.2.4"
+wasm-logger = "0.2"
+
 wasm-bindgen-futures = "0.4.10"
-futures-signals = "0.3.15"
-futures = "0.3.4"
-message = {path = "../message" }
-gloo = "0.2.1"
+yew = "0.19"
+
+reqwasm = "0.5"
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
 # compared to the default allocator's ~10K. It is slower than the default
 # allocator, however.
-wee_alloc = { version = "0.4.4", optional = true }
-
-[dev-dependencies]
-wasm-bindgen-test = "0.3"
-
-[dependencies.web-sys]
-version = "0.3.4"
-features = [
-  'HtmlCanvasElement',
-  'RtcDataChannel',
-  'MouseEvent',
-  'TouchEvent',
-  'TouchList',
-  'Touch',
-]
+wee_alloc = "0.4.4"
 
 [dependencies.wasm-bindgen]
-version = "0.2.58"
+version = "0.2"
 features = [
   'nightly',
 ]

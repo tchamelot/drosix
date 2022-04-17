@@ -1,0 +1,17 @@
+@import "nord.scss";
+
+* {
+  box-sizing: border-box;
+  font-family: sans-serif;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    display: flex;
+    background-color: $nord0;
+    color: $nord6;
+}
