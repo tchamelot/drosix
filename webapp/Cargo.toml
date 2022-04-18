@@ -10,13 +10,17 @@ forced-target = "wasm32-unknown-unknown"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-log = "0.4"
-wasm-logger = "0.2"
+log                     = "0.4"
+wasm-logger             = "0.2"
+console_error_panic_hook = "0.1.7"
 
-wasm-bindgen-futures = "0.4.10"
-yew = "0.19"
+wasm-bindgen-futures    = "0.4.10"
+gloo                    = "0.7"
+yew                     = "0.19"
+yew-router              = "0.16"
+yewdux                  = "0.7"
 
-reqwasm = "0.5"
+reqwasm                 = "0.5"
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
 # compared to the default allocator's ~10K. It is slower than the default
@@ -28,3 +32,10 @@ version = "0.2"
 features = [
   'nightly',
 ]
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    'HtmlInputElement',
+]
+ 

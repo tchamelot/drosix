@@ -11,7 +11,8 @@ html, body {
 }
 
 body {
-    display: flex;
     background-color: $nord0;
     color: $nord6;
 }
+
+@import "src/routes/login.scss";
