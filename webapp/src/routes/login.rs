@@ -1,42 +1,26 @@
-use reqwasm::http::Request;
 use yew::prelude::*;
 use yewdux::prelude::*;
-use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen::JsCast;
 
 use crate::store::{Action, StoreProps};
+use crate::api;
 
 #[function_component(Login)]
 pub fn login(props: &StoreProps) -> Html {
-    let authenticate =
-        props.callback(Action::Authenticate);
-
-    let onsubmit = Callback::from(move |e: FocusEvent| {
+    let onsubmit = props.future_callback_with(|dispatch, e:FocusEvent| async move {
         e.prevent_default();
-        let authenticate = authenticate.clone();
-
         let username = gloo::utils::document()
             .get_element_by_id("username")
             .and_then(|el| el.dyn_into::<web_sys::HtmlInputElement>().ok())
             .map(|input| input.value())
             .unwrap_or_default();
-
         let password = gloo::utils::document()
             .get_element_by_id("password")
             .and_then(|el| el.dyn_into::<web_sys::HtmlInputElement>().ok())
             .map(|input| input.value())
             .unwrap_or_default();
-
-        spawn_local(async move {
-            let auth = Request::post("/api/login")
-                .body(format!("username={}&password={}", username, password))
-                .send()
-                .await
-                .map(|response| response.ok())
-                .unwrap_or_default();
-            authenticate.emit(auth);
-
-        });
+        let authenticated = api::authenticate(username, password).await;
+        dispatch.send(Action::Authenticated(authenticated))
     });
 
     html! {

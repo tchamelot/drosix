@@ -2,6 +2,7 @@
 use wasm_bindgen::prelude::*;
 use yewdux::prelude::WithDispatch;
 
+mod api;
 mod app;
 mod routes;
 mod store;

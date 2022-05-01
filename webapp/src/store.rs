@@ -1,17 +1,18 @@
 use yewdux::prelude::*;
 
-pub type StoreProps = DispatchProps<ReducerStore<Store>>;
+pub type Store = ReducerStore<State>;
+pub type StoreProps = DispatchProps<Store>;
 
 pub enum Action {
-    Authenticate(bool),
+    Authenticated(bool),
 }
 
 #[derive(Clone)]
-pub struct Store {
+pub struct State {
     authenticated: bool,
 }
 
-impl Store {
+impl State {
     fn authenticate(&mut self, auth: bool) -> bool {
         if self.authenticated != auth {
             log::info!("Authenticated: {}", auth);
@@ -27,7 +28,7 @@ impl Store {
     }
 }
 
-impl Reducer for Store {
+impl Reducer for State {
     type Action = Action;
 
     fn new() -> Self {
@@ -39,7 +40,7 @@ impl Reducer for Store {
 
     fn reduce(&mut self, action: Self::Action) -> Changed {
         match action {
-            Action::Authenticate(auth) => self.authenticate(auth),
+            Action::Authenticated(auth) => self.authenticate(auth),
         }
     }
 }
