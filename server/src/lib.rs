@@ -10,6 +10,10 @@ use typed_builder::TypedBuilder;
 #[cfg(feature = "shadow")]
 mod shadow;
 
+mod rtc_server;
+
+use rtc_server::RtcServer;
+
 #[derive(Debug)]
 enum ServerError {
     Login,
@@ -30,6 +34,8 @@ pub struct Server{
     cert: Option<PathBuf>,
     #[builder(setter(strip_option, into), default)]
     key: Option<PathBuf>,
+    #[builder(setter(into))]
+    rtc_address: SocketAddr,
 }
 
 impl Server {
@@ -104,6 +110,7 @@ impl Server {
     #[tokio::main(flavor = "current_thread")]
     pub async fn run(self) {
         let fallback = self.http_root.join("index.html");
+        let rtc_server = RtcServer::new(self.rtc_address).await.unwrap();
 
 
         let registry = warp::any().map(move || self.user_registry.clone());
@@ -113,7 +120,9 @@ impl Server {
             .and_then(Self::login);
 
         let api = warp::path("api")
-            .and(login.recover(Self::handle_rejection));
+            .and(login
+                .or(rtc_server.api())
+                .recover(Self::handle_rejection));
 
         let app = warp::fs::dir(self.http_root).or(warp::fs::file(fallback));
 
@@ -123,10 +132,10 @@ impl Server {
             let tls_server = warp::serve(routes).tls()
                 .cert_path(cert)
                 .key_path(key).run(self.http_address);
-            tls_server.await;
+            tokio::join!(tls_server, rtc_server.run());
         } else {
             let http_server = warp::serve(routes).run(self.http_address);
-            http_server.await;
+            tokio::join!(http_server, rtc_server.run());
         }
     }
 }

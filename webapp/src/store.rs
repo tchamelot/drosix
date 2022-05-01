@@ -1,3 +1,4 @@
+use crate::api::Webrtc;
 use yewdux::prelude::*;
 
 pub type Store = ReducerStore<State>;
@@ -5,11 +6,14 @@ pub type StoreProps = DispatchProps<Store>;
 
 pub enum Action {
     Authenticated(bool),
+    WebrtcIn,
+    WebrtcStatus,
 }
 
 #[derive(Clone)]
 pub struct State {
     authenticated: bool,
+    webrtc: Webrtc,
 }
 
 impl State {
@@ -33,14 +37,21 @@ impl Reducer for State {
 
     fn new() -> Self {
         log::info!("Created store");
+        let webrtc = Webrtc::new();
         Self {
             authenticated: false,
+            webrtc,
         }
     }
 
     fn reduce(&mut self, action: Self::Action) -> Changed {
         match action {
             Action::Authenticated(auth) => self.authenticate(auth),
+            Action::WebrtcStatus => {
+                log::info!("Webrtc status changed");
+                false
+            },
+            _ => false,
         }
     }
 }

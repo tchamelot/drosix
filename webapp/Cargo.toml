@@ -16,11 +16,14 @@ console_error_panic_hook = "0.1.7"
 
 wasm-bindgen-futures    = "0.4.10"
 gloo                    = "0.7"
+js-sys                  = "0.3"
+
 yew                     = "0.19"
 yew-router              = "0.16"
 yewdux                  = "0.7"
 
 reqwasm                 = "0.5"
+serde_json              = "1.0"
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
 # compared to the default allocator's ~10K. It is slower than the default
@@ -37,5 +40,11 @@ features = [
 version = "0.3"
 features = [
     'HtmlInputElement',
+    'RtcDataChannel',
+    'RtcDataChannelInit',
+    'RtcPeerConnection',
+    'RtcSdpType',
+    'RtcSessionDescriptionInit',
+    'RtcIceCandidateInit',
 ]
  
