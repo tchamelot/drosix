@@ -186,10 +186,10 @@ impl<'a> Controller<'a> {
     }
 
     /// Handle a debug event and return the current shared mem state
-    pub fn handle_debug(&mut self) -> PruSharedMem {
+    pub fn handle_debug(&mut self) -> &PruSharedMem {
         self.pru.intc.clear_sysevt(Sysevt::S31);
         self.pru.intc.enable_host(Evtout::E1);
-        *self.shared_mem
+        self.shared_mem
     }
 
     /// Set speed for the given motor

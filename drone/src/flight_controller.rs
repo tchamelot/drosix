@@ -10,10 +10,11 @@ use tokio::sync::mpsc::{Receiver, Sender};
 
 use anyhow::{Context, Result};
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const IMU: Token = Token(0);
 const CONTROLLER: Token = Token(1);
+const DEBUG: Token = Token(2);
 
 const PID_CONF: [Pid; 7] = [
     Pid {
@@ -82,7 +83,7 @@ impl<'a> FlightController<'a> {
                 CONTROLLER,
                 Interest::READABLE,
             )
-            .context("Regitering controller event")?;
+            .context("Registering controller event")?;
         poll.registry()
             .register(
                 &mut SourceFd(&self.sensors.register_imu_event()?),
@@ -90,9 +91,19 @@ impl<'a> FlightController<'a> {
                 Interest::READABLE,
             )
             .context("Registering imu event")?;
+        poll.registry()
+            .register(
+                &mut SourceFd(&self.controller.register_pru_debug()),
+                DEBUG,
+                Interest::READABLE,
+            )
+            .context("Registering debug event");
 
         self.controller.set_pid_configs(PID_CONF);
         self.controller.start()?;
+
+        let start = Instant::now();
+        self.controller.set_debug(1);
 
         'control_loop: loop {
             poll.poll(&mut events, Some(Duration::from_millis(1000)))
@@ -106,6 +117,14 @@ impl<'a> FlightController<'a> {
                         } else {
                             self.controller.set_armed();
                         }
+                    },
+                    DEBUG => {
+                        let shared_mem = self.controller.handle_debug();
+                        println!(
+                            "[{}] {:?}",
+                            start.elapsed().as_millis(),
+                            shared_mem.pid_input
+                        );
                     },
                     _ => (),
                 }
@@ -131,8 +150,8 @@ impl<'a> FlightController<'a> {
         if let Some(command) = self.last_cmd {
             println!("{:?}", command);
             inputs[3] = inputs[3] + (command[0] / 200.0) as f32;
-            self.controller.set_pid_inputs(inputs);
         }
+        self.controller.set_pid_inputs(inputs);
         Ok(())
     }
 

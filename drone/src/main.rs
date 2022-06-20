@@ -20,8 +20,8 @@ fn main() {
         .expect("Failed to start flight controller");
 
     let drone = thread::spawn(move || controller.run());
-    let server = thread::spawn(move || server(answer_rx, command_tx));
+    // let server = thread::spawn(move || server(answer_rx, command_tx));
 
     drone.join().unwrap();
-    server.join().unwrap();
+    // server.join().unwrap();
 }
