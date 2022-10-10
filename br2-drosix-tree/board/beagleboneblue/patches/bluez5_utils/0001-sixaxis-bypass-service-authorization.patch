@@ -1,0 +1,44 @@
+From 4654eff979cbfc030cb8c22b3d5a50409208b1ea Mon Sep 17 00:00:00 2001
+From: "T. Chamelot" <chamelot.thomas@gmail.com>
+Date: Mon, 10 Oct 2022 21:03:54 +0200
+Subject: [PATCH] sixaxis: bypass service authorization
+
+---
+ plugins/sixaxis.c | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/plugins/sixaxis.c b/plugins/sixaxis.c
+index 544ab399a..8868c22ce 100644
+--- a/plugins/sixaxis.c
++++ b/plugins/sixaxis.c
+@@ -364,17 +364,19 @@ static bool setup_device(int fd, const char *sysfs_path,
+ 	bacpy(&closure->bdaddr, &device_bdaddr);
+ 	closure->type = cp->type;
+ 	adapter_bdaddr = btd_adapter_get_address(adapter);
+-	closure->auth_id = btd_request_authorization_cable_configured(
+-					adapter_bdaddr, &device_bdaddr,
+-					HID_UUID, agent_auth_cb, closure);
++	closure->auth_id = 0;
++	// closure->auth_id = btd_request_authorization_cable_configured(
++	// 				adapter_bdaddr, &device_bdaddr,
++	// 				HID_UUID, agent_auth_cb, closure);
+ 
+-	if (closure->auth_id == 0) {
+-		error("sixaxis: could not request cable authorization");
+-		auth_closure_destroy(closure, true);
+-		return false;
+-	}
++	// if (closure->auth_id == 0) {
++	// 	error("sixaxis: could not request cable authorization");
++	// 	auth_closure_destroy(closure, true);
++	// 	return false;
++	// }
+ 
+ 	g_hash_table_insert(pending_auths, closure->sysfs_path, closure);
++	agent_auth_cb(NULL, closre);
+ 
+ 	return true;
+ }
+-- 
+2.37.3
+

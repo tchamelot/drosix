@@ -17,6 +17,7 @@ start() {
         hciattach /dev/ttyS3 texas 300000
         sleep 1
         /usr/libexec/bluetooth/bluetoothd&
+        /usr/bin/bt-agent -c NoInputNoOutput -d
     else
         printf "Failed to turn on wl18xx\n"
         exit 1
