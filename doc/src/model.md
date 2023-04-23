@@ -29,13 +29,13 @@ equations are:
 \\( M_{\overrightarrow{F_4}/O} = \begin{pmatrix} -LF_4 \\\\ -LF_4 \\\\ 0 \\\\ \end{pmatrix} \\)
 
 Moreover, the 4 propellers produce 4 couples on the `z` axis such as:
-\\( M_{propellers} = \begin{pmatrix} 0 \\\\ 0 \\\\ C_1 - C_2 - C_3 + C_4 \\\\ \end{pmatrix} \\)
+\\( M_{propellers} = \begin{pmatrix} 0 \\\\ 0 \\\\ C_1 - C_2 + C_3 - C_4 \\\\ \end{pmatrix} \\)
 
 
 Those equations can represent the roll, the pitch and the yaw.
 
 \\[
-\sum_{}^n M_{/O} = L\begin{pmatrix} F_1 - F_2 + F_3 - F_4 \\\\ F_1 + F_2 - F_3 - F_4 \\\\ C_1 - C_2 - C_3 + C_4 \\\\ \end{pmatrix} = J_\Delta \frac{d}{dt}\begin{pmatrix} roll \\\\ pitch \\\\ yaw \\\\ \end{pmatrix}
+\sum_{}^n M_{/O} = L\begin{pmatrix} F_1 - F_2 - F_3 + F_4 \\\\ F_1 + F_2 - F_3 - F_4 \\\\ C_1 - C_2 + C_3 - C_4 \\\\ \end{pmatrix} = J_\Delta \frac{d}{dt}\begin{pmatrix} roll \\\\ pitch \\\\ yaw \\\\ \end{pmatrix}
 \\]
 
 This equations has one unknown variable. \\(J_\Delta\\) represents the drone's
