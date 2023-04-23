@@ -1,8 +1,11 @@
 use numpy::PyReadonlyArray1;
 use peroxide::c;
 use peroxide::fuga::*;
+use pyo3::once_cell::GILOnceCell;
 use pyo3::prelude::*;
 use std::cell::RefCell;
+use std::path::{Path, PathBuf};
+use toml::Value;
 
 #[pyclass]
 #[derive(Default, Debug)]
@@ -80,20 +83,56 @@ impl Pid {
     }
 }
 
+static MODEL_CACHE: GILOnceCell<(PathBuf, Model)> = GILOnceCell::new();
+
+#[derive(Default, Clone, Copy, Debug)]
+struct Model {
+    size: f64,
+    jx: f64,
+    jy: f64,
+    jz: f64,
+    tm: f64,
+    cr: f64,
+    wb: f64,
+    ct: f64,
+    cm: f64,
+    throttle: f64,
+    w: f64,
+}
+
+impl Model {
+    fn from_file<P: AsRef<Path>>(path: P) -> Self {
+        if let Some((ref path, model)) = Python::with_gil(|py| MODEL_CACHE.get(py)) {
+            *model
+        } else {
+            let cached_path: PathBuf = path.as_ref().into();
+            let content = std::fs::read_to_string(path).unwrap();
+            let model: Value = toml::from_str(&content).unwrap();
+            let model = Self {
+                size: model["frame"]["size"].as_float().unwrap() / 2.0,
+                jx: model["frame"]["jx"].as_float().unwrap(),
+                jy: model["frame"]["jy"].as_float().unwrap(),
+                jz: model["frame"]["jz"].as_float().unwrap(),
+                tm: model["motor"]["tm"].as_float().unwrap(),
+                cr: model["motor"]["cr"].as_float().unwrap(),
+                wb: model["motor"]["wb"].as_float().unwrap(),
+                ct: model["propeller"]["ct"].as_float().unwrap(),
+                cm: model["propeller"]["cm"].as_float().unwrap(),
+                throttle: model["hover"]["throttle"].as_float().unwrap(),
+                w: model["hover"]["w"].as_float().unwrap(),
+            };
+            Python::with_gil(|py| MODEL_CACHE.set(py, (cached_path, model)).unwrap());
+            model
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct Drone {
-    pub tm: f64,
-    pub cr: f64,
-    pub wb: f64,
-    pub d: f64,
-    pub ct: f64,
-    pub cm: f64,
-    pub jx: f64,
-    pub jy: f64,
-    pub jz: f64,
-    pub hover_throttle: f64,
-    pub pid_velocity: RefCell<Pid>,
-    pub set_point: f64,
+    model: Model,
+    pid_velocity: RefCell<Pid>,
+    pid_position: Option<RefCell<Pid>>,
+    set_point: f64,
 }
 
 impl Environment for Drone {}
@@ -107,42 +146,36 @@ impl Environment for Drone {}
 pub fn compute_accel(state: &mut State<f64>, env: &Drone) {
     // PID wx
 
-    let cmd_wx = env
-        .pid_velocity
-        .borrow_mut()
-        .update(env.set_point - state.value[4], state.param);
+    let cmd_px = env
+        .pid_position
+        .as_ref()
+        .map(|pid| pid.borrow_mut().update(env.set_point - state.value[7], state.param))
+        .unwrap_or(env.set_point);
+    let cmd_wx = env.pid_velocity.borrow_mut().update(cmd_px - state.value[4], state.param);
 
-    // Motor 0
-    state.deriv[0] = (env.cr * (env.hover_throttle + cmd_wx + 0.0 + 0.0)
-        + env.wb
-        - state.value[0])
-        / env.tm;
-    // Motor 1
-    state.deriv[1] = (env.cr * (env.hover_throttle - cmd_wx + 0.0 - 0.0)
-        + env.wb
-        - state.value[1])
-        / env.tm;
-    // Motor 2
-    state.deriv[2] = (env.cr * (env.hover_throttle - cmd_wx - 0.0 + 0.0)
-        + env.wb
-        - state.value[2])
-        / env.tm;
-    // Motor 3
-    state.deriv[3] = (env.cr * (env.hover_throttle + cmd_wx - 0.0 - 0.0)
-        + env.wb
-        - state.value[3])
-        / env.tm;
+    // The output of the PID should be between 0 and 200_000 to control the pwm
+    // The throttle is between 0 and 1 so dividing by 200_000 does the trick
+    let throttles = [
+        env.model.throttle + (cmd_wx + 0.0 + 0.0) / 200_000.0,
+        env.model.throttle - (cmd_wx + 0.0 - 0.0) / 200_000.0,
+        env.model.throttle - (cmd_wx - 0.0 + 0.0) / 200_000.0,
+        env.model.throttle + (cmd_wx - 0.0 - 0.0) / 200_000.0,
+    ];
+
+    for i in 0..4 {
+        state.deriv[i] = (env.model.cr * throttles[i] + env.model.wb - state.value[i]) / env.model.tm;
+    }
 
     let w0 = state.value[0].powi(2);
     let w1 = state.value[1].powi(2);
     let w2 = state.value[2].powi(2);
     let w3 = state.value[3].powi(2);
     // Wx
-    state.deriv[4] = env.d * env.ct * (w0 - w1 - w2 + w3) / env.jx;
+    state.deriv[4] = env.model.size * env.model.ct * (w0 - w1 - w2 + w3) / env.model.jx;
     // Wy
-    state.deriv[5] = env.d * env.ct * (w0 + w1 - w2 - w3) / env.jy;
+    state.deriv[5] = env.model.size * env.model.ct * (w0 + w1 - w2 - w3) / env.model.jy;
     // Wz
-    state.deriv[6] = env.cm * (w0 - w1 + w2 - w3) / env.jz;
+    state.deriv[6] = env.model.cm * (w0 - w1 + w2 - w3) / env.model.jz;
 
     // Px
     state.deriv[7] = state.value[4];
@@ -158,19 +191,14 @@ fn pid_velocity_x(pid: PyReadonlyArray1<f64>, save: bool) -> f64 {
     let ti = *pid.get(1).unwrap_or(&0.0);
     let td = *pid.get(2).unwrap_or(&0.0);
     let set_point = std::f64::consts::PI / 10.0;
+
+    let model = Model::from_file("drosix_model.toml");
+
     let drone = Drone {
-        tm: 0.0164,
-        cr: 751.64,
-        wb: 63.61,
-        d: 0.45 * 2.0.sqrt() / 2.0,
-        ct: 1.2015e-5,
-        cm: 2.1057e-7,
-        jx: 0.01334,
-        jy: 0.01334,
-        jz: 0.02557,
-        hover_throttle: 0.48,
+        model,
         pid_velocity: RefCell::new(Pid::new(kp, ti, td, 5, 0.01)),
-        set_point: 1.6,
+        pid_position: None,
+        set_point,
     };
     if save {
         println!("{:#?}", drone.pid_velocity);
@@ -178,7 +206,7 @@ fn pid_velocity_x(pid: PyReadonlyArray1<f64>, save: bool) -> f64 {
 
     let state = State::<f64>::new(
         0f64,
-        c!(428.39, 428.39, 428.39, 428.39, 0, 0, 0, 0, 0, 0),
+        c!(drone.model.w, drone.model.w, drone.model.w, drone.model.w, 0, 0, 0, 0, 0, 0),
         c!(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
     );
 
