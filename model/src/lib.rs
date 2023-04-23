@@ -232,6 +232,75 @@ fn pid_velocity_x(pid: PyReadonlyArray1<f64>, save: bool) -> f64 {
     let err: f64 = result
         .col(5)
         .into_iter()
+        .map(|y| set_point - y)
+        .zip(result.col(0).into_iter())
+        .map(|(e, t)| e.abs() * t)
+        .sum::<f64>()
+        // Part of the itae missing due to early exit
+        + (result.row..1001)
+            .map(|x| set_point * f64::from(x as i16) * 0.01)
+            .sum::<f64>();
+    err
+}
+
+#[pyfunction(save = "false")]
+// fn pid_itae(kp: f64, ti: f64, td: f64, save: bool) -> f64 {
+fn pid_position_x(pid: PyReadonlyArray1<f64>, save: bool) -> f64 {
+    let kp = *pid.get(0).unwrap_or(&0.0);
+    let ti = *pid.get(1).unwrap_or(&0.0);
+    let td = *pid.get(2).unwrap_or(&0.0);
+
+    let content = std::fs::read_to_string("drosix_model.toml").unwrap();
+    let model: Value = toml::from_str(&content).unwrap();
+    let model = Model {
+        size: model["frame"]["size"].as_float().unwrap(),
+        jx: model["frame"]["jx"].as_float().unwrap(),
+        jy: model["frame"]["jy"].as_float().unwrap(),
+        jz: model["frame"]["jz"].as_float().unwrap(),
+        tm: model["motor"]["tm"].as_float().unwrap(),
+        cr: model["motor"]["cr"].as_float().unwrap(),
+        wb: model["motor"]["wb"].as_float().unwrap(),
+        ct: model["propeller"]["ct"].as_float().unwrap(),
+        cm: model["propeller"]["cm"].as_float().unwrap(),
+        throttle: model["hover"]["throttle"].as_float().unwrap(),
+        w: model["hover"]["w"].as_float().unwrap(),
+    };
+
+    let drone = Drone {
+        model,
+        pid_velocity: RefCell::new(Pid::new(170.0, 85.0, 2105.0, 5, 0.01)),
+        pid_position: Some(RefCell::new(Pid::new(kp, ti, td, 5, 0.01))),
+        set_point: 0.26,
+    };
+    if save {
+        println!("{:#?}", drone.pid_position);
+    }
+
+    let state =
+        State::<f64>::new(0f64, c!(428.39, 428.39, 428.39, 428.39, 0, 0, 0, 0, 0, 0), c!(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+
+    let mut ode_solver = ExplicitODE::new(compute_accel);
+
+    ode_solver
+        .set_method(ExMethod::RK4)
+        .set_initial_condition(state)
+        .set_env(drone)
+        .set_stop_condition(|ode| {
+            ode.get_state().value[0] > 800.0
+                || ode.get_state().value[0] < 0.0
+                || ode.get_state().value[1] > 800.0
+                || ode.get_state().value[1] < 0.0
+        })
+        .set_step_size(0.001)
+        .set_times(1000);
+    let result = ode_solver.integrate();
+    if save {
+        result.write("result.csv").expect("Could not open result.csv");
+    }
+
+    let err: f64 = result
+        .col(5)
+        .into_iter()
         .map(|y| 1.6 - y)
         .zip(result.col(0).into_iter())
         .map(|(e, t)| e.abs() * t)
