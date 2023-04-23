@@ -1,11 +1,11 @@
 ignore = ["src/dmp_firmware.rs"]
  
 binop_separator = "Front"
-comment_width = 80
+comment_width = 120
 imports_layout = "Horizontal"
 indent_style = "Block"
 match_block_trailing_comma = true
-max_width = 80
+max_width = 120
 reorder_impl_items = true
 use_field_init_shorthand = true
 use_small_heuristics = "Off"
