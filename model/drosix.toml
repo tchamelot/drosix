@@ -1,6 +1,6 @@
 [frame]
 mass        = 0.9       # kg
-size        = 0.45      # m
+size        = 0.5       # m
 jx          = 1.334e-2  # kg.m²
 jy          = 1.334e-2  # kg.m²
 jz          = 2.557e-2  # kg.m²
