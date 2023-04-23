@@ -1,7 +1,10 @@
+use numpy::PyReadonlyArray1;
 use peroxide::c;
 use peroxide::fuga::*;
+use pyo3::prelude::*;
 use std::cell::RefCell;
 
+#[pyclass]
 #[derive(Default, Debug)]
 pub struct Pid {
     /// Numerator coefficients
@@ -18,7 +21,9 @@ pub struct Pid {
     prev_t: f64,
 }
 
+#[pymethods]
 impl Pid {
+    #[new]
     pub fn new(kp: f64, ti: f64, td: f64, n: u32, T: f64) -> Self {
         let n = f64::from(n);
         // transfer function coefficient in Laplace
@@ -42,6 +47,12 @@ impl Pid {
         }
     }
 
+    pub fn __str__(&self) -> String {
+        format!("PID: a = {:?}, b = {:?}", self.a, self.b).to_string()
+    }
+}
+
+impl Pid {
     pub fn update(&mut self, input: f64, t: f64) -> f64 {
         if (t - self.prev_t) >= self.T {
             let output = input * self.a[0]
@@ -131,11 +142,12 @@ pub fn compute_accel(state: &mut State<f64>, env: &Drone) {
     state.deriv[9] = state.value[6];
 }
 
-#[no_mangle]
-pub extern "C" fn pid_itae(kp: f64, ti: f64, td: f64, save: bool) -> f64 {
-    // let kp = unsafe { kp.as_ref().unwrap() };
-    // let ti = unsafe { ti.as_ref().unwrap() };
-    // let td = unsafe { td.as_ref().unwrap() };
+#[pyfunction(save = "false")]
+fn pid_velocity_x(pid: PyReadonlyArray1<f64>, save: bool) -> f64 {
+    let kp = *pid.get(0).unwrap_or(&0.0);
+    let ti = *pid.get(1).unwrap_or(&0.0);
+    let td = *pid.get(2).unwrap_or(&0.0);
+    let set_point = std::f64::consts::PI / 10.0;
     let drone = Drone {
         tm: 0.0164,
         cr: 751.64,
@@ -191,4 +203,12 @@ pub extern "C" fn pid_itae(kp: f64, ti: f64, td: f64, save: bool) -> f64 {
             .map(|x| 1.6 * f64::from(x as i16) * 0.01)
             .sum::<f64>();
     err
+}
+
+#[pymodule]
+fn model(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(pid_velocity_x, m)?)?;
+    m.add_function(wrap_pyfunction!(pid_position_x, m)?)?;
+    m.add_class::<Pid>()?;
+    Ok(())
 }

@@ -4,13 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[dependencies]
-
-[dependencies.peroxide]
-version = "0.30"
-default-features = false
-features = ["csv"]
-
 [lib]
-name = "model_lib"
-crate-type = ["dylib"]
+name = "model"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.17.1", features = ["extension-module"] }
+peroxide = { version = "0.32", default-features = false, features = ["csv"] }
+numpy = "0.17"
+toml = "0.5"
