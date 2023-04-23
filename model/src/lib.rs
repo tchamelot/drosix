@@ -26,24 +26,36 @@ impl Pid {
     #[new]
     pub fn new(kp: f64, ti: f64, td: f64, n: u32, T: f64) -> Self {
         let n = f64::from(n);
-        // transfer function coefficient in Laplace
-        let a2 = kp * td * (n + 1.0) / n;
-        let a1 = kp * (td + ti * n) / (ti * n);
-        let a0 = kp / ti;
-        let b2 = td / n;
-        // transfer function coefficient in Z
-        let c2 = 4.0 * a2 + 2.0 * T * a1 + T.powi(2) * a0;
-        let c1 = -8.0 * a2 + 2.0 * T.powi(2) * a0;
-        let c0 = 4.0 * a2 - 2.0 * T * a1 + T.powi(2) * a0;
-        let d2 = 4.0 * b2 + 2.0 * T;
-        let d1 = -8.0 * b2;
-        let d0 = 4.0 * b2 - 2.0 * T;
+        match (kp, ti, td) {
+            // P
+            (kp, 0.0, 0.0) => Self {
+                a: [kp, 0.0, 0.0],
+                b: [0.0, 0.0],
+                T,
+                ..Default::default()
+            },
+            // PID filtered
+            _ => {
+                // transfer function coefficient in Laplace
+                let a2 = kp * td * (n + 1.0) / n;
+                let a1 = kp * (td + ti * n) / (ti * n);
+                let a0 = kp / ti;
+                let b2 = td / n;
+                // transfer function coefficient in Z
+                let c2 = 4.0 * a2 + 2.0 * T * a1 + T.powi(2) * a0;
+                let c1 = -8.0 * a2 + 2.0 * T.powi(2) * a0;
+                let c0 = 4.0 * a2 - 2.0 * T * a1 + T.powi(2) * a0;
+                let d2 = 4.0 * b2 + 2.0 * T;
+                let d1 = -8.0 * b2;
+                let d0 = 4.0 * b2 - 2.0 * T;
 
-        Self {
-            a: [c2 / d2, c1 / d2, c0 / d2],
-            b: [d1 / d2, d0 / d2],
-            T,
-            ..Default::default()
+                Self {
+                    a: [c2 / d2, c1 / d2, c0 / d2],
+                    b: [d1 / d2, d0 / d2],
+                    T,
+                    ..Default::default()
+                }
+            },
         }
     }
 
@@ -55,9 +67,7 @@ impl Pid {
 impl Pid {
     pub fn update(&mut self, input: f64, t: f64) -> f64 {
         if (t - self.prev_t) >= self.T {
-            let output = input * self.a[0]
-                + self.inputs[0] * self.a[1]
-                + self.inputs[1] * self.a[2]
+            let output = input * self.a[0] + self.inputs[0] * self.a[1] + self.inputs[1] * self.a[2]
                 - self.outputs[0] * self.b[0]
                 - self.outputs[1] * self.b[1];
             self.inputs[1] = self.inputs[0];
