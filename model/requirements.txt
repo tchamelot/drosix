@@ -6,7 +6,7 @@ greenlet==1.1.2
 jedi==0.18.1
 kiwisolver==1.3.2
 matplotlib==3.5.1
-mpmath==1.2.1
+mpmath==1.3.0
 msgpack==1.0.3
 parso==0.8.3
 Pillow==9.0.1
