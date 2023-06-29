@@ -9,7 +9,7 @@ name = "model"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.17.1", features = ["extension-module"] }
+pyo3 = { version = "0.18", features = ["extension-module"] }
 peroxide = { version = "0.32", default-features = false, features = ["csv"] }
-numpy = "0.17"
+numpy = "0.18"
 toml = "0.5"

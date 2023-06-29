@@ -1,6 +1,7 @@
 use numpy::PyReadonlyArray1;
 use peroxide::c;
 use peroxide::fuga::*;
+use pyo3::exceptions::{PyKeyError, PyRuntimeError};
 use pyo3::once_cell::GILOnceCell;
 use pyo3::prelude::*;
 use std::cell::RefCell;
@@ -83,10 +84,10 @@ impl Pid {
     }
 }
 
-static MODEL_CACHE: GILOnceCell<(PathBuf, Model)> = GILOnceCell::new();
+static CONFIG_CACHE: GILOnceCell<(PathBuf, Config)> = GILOnceCell::new();
 
 #[derive(Default, Clone, Copy, Debug)]
-struct Model {
+struct Config {
     size: f64,
     jx: f64,
     jy: f64,
@@ -100,36 +101,36 @@ struct Model {
     w: f64,
 }
 
-impl Model {
+impl Config {
     fn from_file<P: AsRef<Path>>(path: P) -> Self {
-        if let Some((ref path, model)) = Python::with_gil(|py| MODEL_CACHE.get(py)) {
-            *model
+        if let Some((ref path, config)) = Python::with_gil(|py| CONFIG_CACHE.get(py)) {
+            *config
         } else {
             let cached_path: PathBuf = path.as_ref().into();
             let content = std::fs::read_to_string(path).unwrap();
-            let model: Value = toml::from_str(&content).unwrap();
-            let model = Self {
-                size: model["frame"]["size"].as_float().unwrap() / 2.0,
-                jx: model["frame"]["jx"].as_float().unwrap(),
-                jy: model["frame"]["jy"].as_float().unwrap(),
-                jz: model["frame"]["jz"].as_float().unwrap(),
-                tm: model["motor"]["tm"].as_float().unwrap(),
-                cr: model["motor"]["cr"].as_float().unwrap(),
-                wb: model["motor"]["wb"].as_float().unwrap(),
-                ct: model["propeller"]["ct"].as_float().unwrap(),
-                cm: model["propeller"]["cm"].as_float().unwrap(),
-                throttle: model["hover"]["throttle"].as_float().unwrap(),
-                w: model["hover"]["w"].as_float().unwrap(),
+            let config: Value = toml::from_str(&content).unwrap();
+            let config = Self {
+                size: config["frame"]["size"].as_float().unwrap() / 2.0,
+                jx: config["frame"]["jx"].as_float().unwrap(),
+                jy: config["frame"]["jy"].as_float().unwrap(),
+                jz: config["frame"]["jz"].as_float().unwrap(),
+                tm: config["motor"]["tm"].as_float().unwrap(),
+                cr: config["motor"]["cr"].as_float().unwrap(),
+                wb: config["motor"]["wb"].as_float().unwrap(),
+                ct: config["propeller"]["ct"].as_float().unwrap(),
+                cm: config["propeller"]["cm"].as_float().unwrap(),
+                throttle: config["hover"]["throttle"].as_float().unwrap(),
+                w: config["hover"]["w"].as_float().unwrap(),
             };
-            Python::with_gil(|py| MODEL_CACHE.set(py, (cached_path, model)).unwrap());
-            model
+            Python::with_gil(|py| CONFIG_CACHE.set(py, (cached_path, config)).unwrap());
+            config
         }
     }
 }
 
 #[derive(Default)]
 pub struct Drone {
-    model: Model,
+    config: Config,
     pid_velocity: RefCell<Pid>,
     pid_position: Option<RefCell<Pid>>,
     set_point: f64,
@@ -137,6 +138,91 @@ pub struct Drone {
 
 impl Environment for Drone {}
 
+#[pyclass]
+struct Model {
+    config: Config,
+}
+
+#[pymethods]
+impl Model {
+    #[new]
+    fn new(path: String) -> PyResult<Self> {
+        let content = std::fs::read_to_string(path)?;
+        let config: Value = toml::from_str(&content).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let config = Config {
+            size: config["frame"]["size"].as_float().ok_or(PyKeyError::new_err("frame/size"))?,
+            jx: config["frame"]["jx"].as_float().ok_or(PyKeyError::new_err("frame/jx"))?,
+            jy: config["frame"]["jy"].as_float().ok_or(PyKeyError::new_err("frame/jy"))?,
+            jz: config["frame"]["jz"].as_float().ok_or(PyKeyError::new_err("frame/jz"))?,
+            tm: config["motor"]["tm"].as_float().ok_or(PyKeyError::new_err("motor/tm"))?,
+            cr: config["motor"]["cr"].as_float().ok_or(PyKeyError::new_err("motor/cr"))?,
+            wb: config["motor"]["wb"].as_float().ok_or(PyKeyError::new_err("motor/wb"))?,
+            ct: config["propeller"]["ct"].as_float().ok_or(PyKeyError::new_err("propeller/ct"))?,
+            cm: config["propeller"]["cm"].as_float().ok_or(PyKeyError::new_err("propeller/cm"))?,
+            throttle: config["hover"]["throttle"].as_float().ok_or(PyKeyError::new_err("hover/throttle"))?,
+            w: config["hover"]["w"].as_float().ok_or(PyKeyError::new_err("hober/w"))?,
+        };
+        Ok(Self {
+            config,
+        })
+    }
+
+    #[pyo3(signature = (pid, save=false))]
+    fn __call__(&self, pid: PyReadonlyArray1<f64>, save: bool) -> f64 {
+        let kp = *pid.get(0).unwrap_or(&0.0);
+        let ti = *pid.get(1).unwrap_or(&0.0);
+        let td = *pid.get(2).unwrap_or(&0.0);
+        let set_point = std::f64::consts::PI / 10.0;
+
+        let drone = Drone {
+            config: self.config,
+            pid_velocity: RefCell::new(Pid::new(kp, ti, td, 5, 0.01)),
+            pid_position: None,
+            set_point,
+        };
+        if save {
+            println!("{:#?}", drone.pid_position);
+        }
+
+        let state = State::<f64>::new(
+            0f64,
+            c!(428.39, 428.39, 428.39, 428.39, 0, 0, 0, 0, 0, 0),
+            c!(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+        );
+
+        let mut ode_solver = ExplicitODE::new(compute_accel);
+
+        ode_solver
+            .set_method(ExMethod::RK4)
+            .set_initial_condition(state)
+            .set_env(drone)
+            .set_stop_condition(|ode| {
+                ode.get_state().value[0] > 800.0
+                    || ode.get_state().value[0] < 0.0
+                    || ode.get_state().value[1] > 800.0
+                    || ode.get_state().value[1] < 0.0
+            })
+            .set_step_size(0.001)
+            .set_times(1000);
+        let result = ode_solver.integrate();
+        if save {
+            result.write("result.csv").expect("Could not open result.csv");
+        }
+
+        let err: f64 = result
+            .col(5)
+            .into_iter()
+            .map(|y| set_point - y)
+            .zip(result.col(0).into_iter())
+            .map(|(e, t)| e.abs() * t)
+            .sum::<f64>()
+            // Part of the itae missing due to early exit
+            + (result.row..1001)
+                .map(|x| set_point * f64::from(x as i16) * 0.01)
+                .sum::<f64>();
+        err
+    }
+}
 /**
  * 0 Motor 0 | 4 Wx | 7 Px
  * 1 Motor 1 | 5 Wy | 8 Py
@@ -156,14 +242,14 @@ pub fn compute_accel(state: &mut State<f64>, env: &Drone) {
     // The output of the PID should be between 0 and 200_000 to control the pwm
     // The throttle is between 0 and 1 so dividing by 200_000 does the trick
     let throttles = [
-        env.model.throttle + (cmd_wx + 0.0 + 0.0) / 200_000.0,
-        env.model.throttle - (cmd_wx + 0.0 - 0.0) / 200_000.0,
-        env.model.throttle - (cmd_wx - 0.0 + 0.0) / 200_000.0,
-        env.model.throttle + (cmd_wx - 0.0 - 0.0) / 200_000.0,
+        env.config.throttle + (cmd_wx + 0.0 + 0.0) / 200_000.0,
+        env.config.throttle - (cmd_wx + 0.0 - 0.0) / 200_000.0,
+        env.config.throttle - (cmd_wx - 0.0 + 0.0) / 200_000.0,
+        env.config.throttle + (cmd_wx - 0.0 - 0.0) / 200_000.0,
     ];
 
     for i in 0..4 {
-        state.deriv[i] = (env.model.cr * throttles[i] + env.model.wb - state.value[i]) / env.model.tm;
+        state.deriv[i] = (env.config.cr * throttles[i] + env.config.wb - state.value[i]) / env.config.tm;
     }
 
     let w0 = state.value[0].powi(2);
@@ -171,11 +257,11 @@ pub fn compute_accel(state: &mut State<f64>, env: &Drone) {
     let w2 = state.value[2].powi(2);
     let w3 = state.value[3].powi(2);
     // Wx
-    state.deriv[4] = env.model.size * env.model.ct * (w0 - w1 - w2 + w3) / env.model.jx;
+    state.deriv[4] = env.config.size * env.config.ct * (w0 - w1 - w2 + w3) / env.config.jx;
     // Wy
-    state.deriv[5] = env.model.size * env.model.ct * (w0 + w1 - w2 - w3) / env.model.jy;
+    state.deriv[5] = env.config.size * env.config.ct * (w0 + w1 - w2 - w3) / env.config.jy;
     // Wz
-    state.deriv[6] = env.model.cm * (w0 - w1 + w2 - w3) / env.model.jz;
+    state.deriv[6] = env.config.cm * (w0 - w1 + w2 - w3) / env.config.jz;
 
     // Px
     state.deriv[7] = state.value[4];
@@ -192,10 +278,10 @@ fn pid_velocity_x(pid: PyReadonlyArray1<f64>, save: bool) -> f64 {
     let td = *pid.get(2).unwrap_or(&0.0);
     let set_point = std::f64::consts::PI / 10.0;
 
-    let model = Model::from_file("drosix_model.toml");
+    let config = Config::from_file("drosix_model.toml");
 
     let drone = Drone {
-        model,
+        config,
         pid_velocity: RefCell::new(Pid::new(kp, ti, td, 5, 0.01)),
         pid_position: None,
         set_point,
@@ -206,7 +292,7 @@ fn pid_velocity_x(pid: PyReadonlyArray1<f64>, save: bool) -> f64 {
 
     let state = State::<f64>::new(
         0f64,
-        c!(drone.model.w, drone.model.w, drone.model.w, drone.model.w, 0, 0, 0, 0, 0, 0),
+        c!(drone.config.w, drone.config.w, drone.config.w, drone.config.w, 0, 0, 0, 0, 0, 0),
         c!(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
     );
 
@@ -250,24 +336,24 @@ fn pid_position_x(pid: PyReadonlyArray1<f64>, save: bool) -> f64 {
     let ti = *pid.get(1).unwrap_or(&0.0);
     let td = *pid.get(2).unwrap_or(&0.0);
 
-    let content = std::fs::read_to_string("drosix_model.toml").unwrap();
-    let model: Value = toml::from_str(&content).unwrap();
-    let model = Model {
-        size: model["frame"]["size"].as_float().unwrap(),
-        jx: model["frame"]["jx"].as_float().unwrap(),
-        jy: model["frame"]["jy"].as_float().unwrap(),
-        jz: model["frame"]["jz"].as_float().unwrap(),
-        tm: model["motor"]["tm"].as_float().unwrap(),
-        cr: model["motor"]["cr"].as_float().unwrap(),
-        wb: model["motor"]["wb"].as_float().unwrap(),
-        ct: model["propeller"]["ct"].as_float().unwrap(),
-        cm: model["propeller"]["cm"].as_float().unwrap(),
-        throttle: model["hover"]["throttle"].as_float().unwrap(),
-        w: model["hover"]["w"].as_float().unwrap(),
+    let content = std::fs::read_to_string("drosix_config.toml").unwrap();
+    let config: Value = toml::from_str(&content).unwrap();
+    let config = Config {
+        size: config["frame"]["size"].as_float().unwrap(),
+        jx: config["frame"]["jx"].as_float().unwrap(),
+        jy: config["frame"]["jy"].as_float().unwrap(),
+        jz: config["frame"]["jz"].as_float().unwrap(),
+        tm: config["motor"]["tm"].as_float().unwrap(),
+        cr: config["motor"]["cr"].as_float().unwrap(),
+        wb: config["motor"]["wb"].as_float().unwrap(),
+        ct: config["propeller"]["ct"].as_float().unwrap(),
+        cm: config["propeller"]["cm"].as_float().unwrap(),
+        throttle: config["hover"]["throttle"].as_float().unwrap(),
+        w: config["hover"]["w"].as_float().unwrap(),
     };
 
     let drone = Drone {
-        model,
+        config,
         pid_velocity: RefCell::new(Pid::new(170.0, 85.0, 2105.0, 5, 0.01)),
         pid_position: Some(RefCell::new(Pid::new(kp, ti, td, 5, 0.01))),
         set_point: 0.26,
@@ -317,5 +403,6 @@ fn model(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pid_velocity_x, m)?)?;
     m.add_function(wrap_pyfunction!(pid_position_x, m)?)?;
     m.add_class::<Pid>()?;
+    m.add_class::<Model>()?;
     Ok(())
 }
