@@ -46,14 +46,10 @@ index b879d467cdce..34dd26928946 100644
  	leds {
  		pinctrl-names = "default";
  		pinctrl-0 = <&user_leds_s0>;
-@@ -161,19 +167,11 @@
+@@ -161,15 +167,11 @@
  	spi1 = &spi1;
  };
  
--&sgx {
--	status = "okay";
--};
--
  &cpu0_opp_table {
  	/*
 -	* Octavo Systems:
