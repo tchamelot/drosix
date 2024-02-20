@@ -146,12 +146,12 @@ impl<'a> FlightController<'a> {
         let measures = self.sensors.handle_imu_event()?;
 
         let mut inputs = [
-            (-measures.euler[0]) as f32, // p_measure_x
-            (-measures.euler[1]) as f32, // p_measure_y
+            (-measures.euler[1]) as f32, // p_measure_x
+            (-measures.euler[0]) as f32, // p_measure_y
             (-measures.euler[2]) as f32, // p_measure_z
             (0) as f32,                  // thrust
-            (-measures.gyro[0]) as f32,  // v_measure_x
-            (-measures.gyro[1]) as f32,  // v_measure_y
+            (-measures.gyro[1]) as f32,  // v_measure_x
+            (-measures.gyro[0]) as f32,  // v_measure_y
             (-measures.gyro[2]) as f32,  // v_measure_z
         ];
         if let Some(command) = self.last_cmd {
