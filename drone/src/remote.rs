@@ -1,3 +1,4 @@
+use crate::config::DebugConfig;
 use crate::messages::Command;
 use gilrs::{Button, Event, EventType, Gilrs};
 use std::thread;
@@ -8,8 +9,6 @@ pub fn remote(remote_tx: Sender<Command>) {
     let mut gilrs = Gilrs::new().unwrap();
 
     'main: loop {
-        // Examine new events
-        let mut throttle = None;
         while let Some(Event {
             id,
             event,
@@ -25,22 +24,19 @@ pub fn remote(remote_tx: Sender<Command>) {
                     println!("{:?} New event from {}: Conected", time, id);
                 },
                 EventType::ButtonChanged(Button::LeftTrigger2, value, _) => {
-                    throttle = Some(value);
+                    remote_tx
+                        .blocking_send(Command::Flight([value.into(), 0.0, 0.0, 0.0]))
+                        .expect("Cannot send command from remote to drone");
                 },
                 EventType::ButtonPressed(Button::DPadLeft, _) => {
-                    remote_tx.blocking_send(Command::SubscribeDebug(1)).expect(
-                        "Cannot send debug command from remote to drone",
-                    );
+                    remote_tx
+                        .blocking_send(Command::SubscribeDebug(DebugConfig::PidLoop))
+                        .expect("Cannot send debug command from remote to drone");
                 },
                 _ => {
                     // println!("Not handled event: {:?}", event);
                 },
             }
-        }
-        if let Some(value) = throttle {
-            remote_tx
-                .blocking_send(Command::Flight([value.into(), 0.0, 0.0, 0.0]))
-                .expect("Cannot send command from remote to drone");
         }
         std::thread::sleep(time::Duration::from_millis(50));
     }

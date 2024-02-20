@@ -14,6 +14,7 @@ hal                 = { version = "0.3", package = "linux-embedded-hal" }
 mio                 = { version = "0.7", features = ["os-poll", "os-ext", "net"] } 
 prusst              = { git = "https://github.com/tchamelot/prusst" }
 gpio-cdev           = "0.5"
+bitmask-enum        = "2.2.3"
 
 # Server
 tokio               = { version = "1.13", features = ["macros", "rt", "sync"] }
@@ -21,11 +22,13 @@ futures             = { version = "0.3", features = ["alloc"], default-features 
 warp                = "0.2"
 bytes               = "0.5"
 webrtc-unreliable   = { git = "https://github.com/tchamelot/webrtc-unreliable.git" }
-message             = { path = "../message" }
-rkyv                = "0.7"
+
+# Parameters
+serde               = { version = "1.0", features = ["derive"] }
+toml                = "0.8"
 
 # Remote controller
-gilrs = "0.8"
+gilrs = "0.10"
 
 anyhow              = "1.0"
 [dependencies.mpu9250]
