@@ -1,17 +1,15 @@
+use crate::messages::Command;
 use gilrs::{Button, Event, EventType, Gilrs};
+use std::thread;
+use std::time;
+use tokio::sync::mpsc::Sender;
 
-fn main() {
+pub fn remote(remote_tx: Sender<Command>) {
     let mut gilrs = Gilrs::new().unwrap();
-
-    // Iterate over all connected gamepads
-    for (_id, gamepad) in gilrs.gamepads() {
-        println!("{} is {:?}", gamepad.name(), gamepad.power_info());
-    }
-
-    let mut active_gamepad = None;
 
     'main: loop {
         // Examine new events
+        let mut throttle = None;
         while let Some(Event {
             id,
             event,
@@ -23,12 +21,27 @@ fn main() {
                     println!("{:?} New event from {}: Disconected", time, id);
                     break 'main;
                 },
-                EventType::ButtonChanged(Button::LeftTrigger2, value, _) => {
-                    println!("Thrust : {}", value * 100.0);
+                EventType::Connected => {
+                    println!("{:?} New event from {}: Conected", time, id);
                 },
-                _ => (),
+                EventType::ButtonChanged(Button::LeftTrigger2, value, _) => {
+                    throttle = Some(value);
+                },
+                EventType::ButtonPressed(Button::DPadLeft, _) => {
+                    remote_tx.blocking_send(Command::SubscribeDebug(1)).expect(
+                        "Cannot send debug command from remote to drone",
+                    );
+                },
+                _ => {
+                    // println!("Not handled event: {:?}", event);
+                },
             }
-            active_gamepad = Some(id);
         }
+        if let Some(value) = throttle {
+            remote_tx
+                .blocking_send(Command::Flight([value.into(), 0.0, 0.0, 0.0]))
+                .expect("Cannot send command from remote to drone");
+        }
+        std::thread::sleep(time::Duration::from_millis(50));
     }
 }

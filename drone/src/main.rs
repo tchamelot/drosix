@@ -2,6 +2,7 @@ use std::thread;
 use tokio::sync::mpsc::channel;
 
 use drone::flight_controller::FlightController;
+use drone::remote::remote;
 
 #[cfg(feature = "mock")]
 mod mock;
@@ -20,8 +21,10 @@ fn main() {
         .expect("Failed to start flight controller");
 
     let drone = thread::spawn(move || controller.run());
+    let remote = thread::spawn(move || remote(command_tx));
     // let server = thread::spawn(move || server(answer_rx, command_tx));
 
     drone.join().unwrap();
+    remote.join().unwrap();
     // server.join().unwrap();
 }

@@ -155,8 +155,7 @@ impl<'a> FlightController<'a> {
             (-measures.gyro[2]) as f32,  // v_measure_z
         ];
         if let Some(command) = self.last_cmd {
-            println!("{:?}", command);
-            inputs[3] = inputs[3] + (command[0] / 200.0) as f32;
+            inputs[3] = inputs[3] + (command[0] * 99999.0) as f32;
         }
         self.controller.set_pid_inputs(inputs);
         Ok(())
@@ -187,9 +186,7 @@ impl<'a> FlightController<'a> {
                 });
             },
             Ok(Command::SubscribeDebug(dbg)) => self.controller.set_debug(dbg),
-            Ok(Command::UnsubscribeDebug(dbg)) => {
-                self.controller.reset_debug(dbg)
-            },
+            Ok(Command::UnsubscribeDebug(dbg)) => self.controller.reset_debug(dbg),
             Ok(Command::Arm) => self.controller.set_armed(),
             Ok(Command::Disarm) => self.controller.clear_armed(),
             _ => {},
