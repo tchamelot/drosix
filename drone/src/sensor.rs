@@ -32,7 +32,7 @@ impl Sensors {
             .read_to_end(&mut dmp_firmware)
             .context("Reading mpu9250 firmware")?;
 
-        let mut mpu9250 = MpuConfig::dmp().dmp_rate(DmpRate::_20Hz).build(i2c);
+        let mut mpu9250 = MpuConfig::dmp().dmp_rate(DmpRate::_100Hz).build(i2c);
         mpu9250
             .init(&mut Delay, &dmp_firmware)
             .map_err(|_| Error::msg("Statring mpu9250"))?;
