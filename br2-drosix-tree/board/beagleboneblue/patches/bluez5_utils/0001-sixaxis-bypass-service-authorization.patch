@@ -35,7 +35,7 @@ index 544ab399a..8868c22ce 100644
 +	// }
  
  	g_hash_table_insert(pending_auths, closure->sysfs_path, closure);
-+	agent_auth_cb(NULL, closre);
++	agent_auth_cb(NULL, closure);
  
  	return true;
  }
