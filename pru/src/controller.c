@@ -83,7 +83,7 @@ void main(void) {
 #pragma RESET_MISRA("11.3")
 
             send_event(EVT_PID_OUTPUT);
-            send_event(EVT_DEBUG);
+            /* send_event(EVT_DEBUG); */
             if(controller.debug_location & DEBUG_PID_LOOP) {
               controller.p_pid[0] =  v_setpoint[0];
               controller.p_pid[1] =  v_setpoint[1];

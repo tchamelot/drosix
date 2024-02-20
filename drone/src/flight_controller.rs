@@ -1,4 +1,4 @@
-use crate::controller::{Controller, Pid};
+use crate::controller::{Controller, Pid, PruSharedMem};
 use crate::messages::{Answer, Command};
 use crate::sensor::Sensors;
 
@@ -10,7 +10,10 @@ use tokio::sync::mpsc::{Receiver, Sender};
 
 use anyhow::{Context, Result};
 
+use std::io::{stdout, Write};
 use std::time::{Duration, Instant};
+
+use prusst::util::VolatileCell;
 
 const IMU: Token = Token(0);
 const CONTROLLER: Token = Token(1);
@@ -103,7 +106,7 @@ impl<'a> FlightController<'a> {
         self.controller.start()?;
 
         let start = Instant::now();
-        self.controller.set_debug(1);
+        // self.controller.set_debug(1);
 
         'control_loop: loop {
             poll.poll(&mut events, Some(Duration::from_millis(100))).context("Polling events")?;
@@ -125,13 +128,39 @@ impl<'a> FlightController<'a> {
                             self.controller.set_armed();
                         }
                     },
-                    DEBUG => {
+                    DEBUG => unsafe {
                         let shared_mem = self.controller.handle_debug();
-                        println!(
-                            "[{}] {:?}",
-                            start.elapsed().as_millis(),
-                            shared_mem.pid_input
-                        );
+                        stdout().write_all(&start.elapsed().as_millis().to_le_bytes()).unwrap();
+                        stdout()
+                            .write_all(std::slice::from_raw_parts(
+                                (&shared_mem.pid_input as *const [VolatileCell<f32>; 7]) as *const u8,
+                                std::mem::size_of::<[VolatileCell<f32>; 7]>(),
+                            ))
+                            .unwrap();
+                        stdout()
+                            .write_all(std::slice::from_raw_parts(
+                                (&shared_mem.pid_output as *const [VolatileCell<u32>; 4]) as *const u8,
+                                std::mem::size_of::<[VolatileCell<f32>; 4]>(),
+                            ))
+                            .unwrap();
+                        stdout()
+                            .write_all(std::slice::from_raw_parts(
+                                (&shared_mem.v_pid as *const [VolatileCell<f32>; 3]) as *const u8,
+                                std::mem::size_of::<[VolatileCell<f32>; 3]>(),
+                            ))
+                            .unwrap();
+                        stdout()
+                            .write_all(std::slice::from_raw_parts(
+                                (&shared_mem.p_pid as *const [VolatileCell<f32>; 3]) as *const u8,
+                                std::mem::size_of::<[VolatileCell<f32>; 3]>(),
+                            ))
+                            .unwrap();
+
+                        // println!(
+                        //     "[{}] {:?}",
+                        //     start.elapsed().as_millis(),
+                        //     shared_mem.pid_input
+                        // );
                     },
                     _ => (),
                 }
