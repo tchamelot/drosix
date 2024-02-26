@@ -9,9 +9,9 @@ const CONFIG_FILE: &'static str = "drosix.toml";
 #[derive(Serialize, Deserialize, Default, Copy, Clone, Debug)]
 pub struct Pid {
     /// PID input gains
-    pub a: [f32; 3],
+    pub numerator: [f32; 3],
     /// PID output gains
-    pub b: [f32; 2],
+    pub denominator: [f32; 2],
 }
 
 #[repr(C)]
