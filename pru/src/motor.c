@@ -31,7 +31,7 @@ void main(void) {
         switch(check_event1()) {
         case EVT_PWM_STEP:
             CT_IEP.TMR_CMP_STS = 0x1U;
-            if(controller.debug_location & DEBUG_PWM_STEP) {
+            if(controller.debug_config == PwmStep) {
               send_event(EVT_DEBUG);
             }
             set_pins(ALL_MOTORS);
@@ -93,7 +93,7 @@ void configure_timer(void) {
 void read_motor_cmd(uint32_t cmd[4]) {
     uint32_t i;
     for(i = 0U; i < 4; i++) {
-        cmd[i] = controller.outputs[i];
+        cmd[i] = controller.pid_output[i];
         if(cmd[i] < 199999) {
             cmd[i] = 199999;
         }

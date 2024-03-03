@@ -5,7 +5,7 @@ use std::os::unix::io::{AsRawFd, RawFd};
 
 use std::fs::File;
 
-use crate::config::{AnglePid, DebugConfig, Pid};
+use crate::types::{AnglePid, Angles, DebugConfig, Odometry, Pid};
 
 const MOTORS_FW: &str = "/lib/firmware/motor.bin";
 const PID_FW: &str = "/lib/firmware/controller.bin";
@@ -15,10 +15,6 @@ const PID_FW: &str = "/lib/firmware/controller.bin";
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct PruSharedMem {
-    /// PID controller inputs: Roll, Pitch, Yaw, Thrust, angular velocities
-    pub pid_input: [VolatileCell<f32>; 7],
-    /// PID controller outputs: Motor[1-4] duty cycles
-    pub pid_output: [VolatileCell<u32>; 4],
     /// PID parameters for attitude controller
     pub attitude_pid: VolatileCell<AnglePid>,
     /// PID parameters for thrust controller
@@ -27,10 +23,14 @@ pub struct PruSharedMem {
     pub rate_pid: VolatileCell<AnglePid>,
     /// For debug purpose: indicates which event should trigger a debug event
     pub debug_config: VolatileCell<DebugConfig>,
+    /// PID controller inp
+    pub pid_input: VolatileCell<Odometry>,
+    /// PID controller outputs: Motor[1-4] duty cycles
+    pub pid_output: [VolatileCell<u32>; 4],
     /// For debug purpose: position PID outputs
-    pub p_pid: [VolatileCell<f32>; 3],
+    pub p_pid: VolatileCell<Angles>,
     /// For debug purpose: speed PID outputs
-    pub v_pid: [VolatileCell<f32>; 3],
+    pub v_pid: VolatileCell<Angles>,
     /// For debug purpose: number of cycles recorded by a PRU
     pub cycle: VolatileCell<u32>,
     /// For debug purpose: number of stall cycles recorded by a PRU
@@ -40,23 +40,19 @@ pub struct PruSharedMem {
 impl Default for PruSharedMem {
     fn default() -> Self {
         PruSharedMem {
-            pid_input: [VolatileCell::new(0.0); 7],
-            pid_output: [VolatileCell::new(179_999); 4],
             attitude_pid: VolatileCell::new(AnglePid::default()),
             thrust_pid: VolatileCell::new(Pid::default()),
             rate_pid: VolatileCell::new(AnglePid::default()),
-            debug_config: VolatileCell::new(DebugConfig::none()),
-            p_pid: [VolatileCell::new(0.0); 3],
-            v_pid: [VolatileCell::new(0.0); 3],
+            debug_config: VolatileCell::new(DebugConfig::None),
+            pid_input: VolatileCell::new(Odometry::default()),
+            pid_output: [VolatileCell::new(179_999); 4],
+            p_pid: VolatileCell::new(Angles::default()),
+            v_pid: VolatileCell::new(Angles::default()),
             cycle: VolatileCell::new(0),
             stall: VolatileCell::new(0),
         }
     }
 }
-
-pub const DEBUG_PID_LOOP: u32 = 1 << 0;
-pub const DEBUG_PID_NEW_DATA: u32 = 1 << 1;
-pub const DEBUG_PWM_STEP: u32 = 1 << 2;
 
 const EVENT_MAP: [(Sysevt, Channel); 9] = [
     (Sysevt::S17, Channel::C0), /* CONTROLLER_STOP */
@@ -98,6 +94,7 @@ impl<'a> Controller<'a> {
 
         // Init PRU shared mem
         let shared_mem = pru.dram2.alloc(PruSharedMem::default());
+        // FIXME this might be the ugliest use of transmute
         // Use transmute to extend the lifetime. It is ok because pru has the
         // lifetime 'a and the controller ref has the same lifetime.
         // Moreover, the ref is not visible outside of the Controller
@@ -187,14 +184,8 @@ impl<'a> Controller<'a> {
 
     /// Send new values to the PID controller
     /// New values will be processed only if the motor are armed
-    pub fn set_pid_inputs(&mut self, inputs: [f32; 7]) {
-        self.shared_mem.pid_input[0].set(inputs[0]);
-        self.shared_mem.pid_input[1].set(inputs[1]);
-        self.shared_mem.pid_input[2].set(inputs[2]);
-        self.shared_mem.pid_input[3].set(inputs[3]);
-        self.shared_mem.pid_input[4].set(inputs[4]);
-        self.shared_mem.pid_input[5].set(inputs[5]);
-        self.shared_mem.pid_input[6].set(inputs[6]);
+    pub fn set_pid_inputs(&mut self, inputs: Odometry) {
+        self.shared_mem.pid_input.set(inputs);
         self.pru.intc.send_sysevt(Sysevt::S18);
     }
 
@@ -208,13 +199,8 @@ impl<'a> Controller<'a> {
         self.pru.intc.send_sysevt(Sysevt::S23);
     }
 
-    pub fn set_debug(&mut self, dbg: DebugConfig) {
-        let dbg = self.shared_mem.debug_config.get() | dbg;
-        self.shared_mem.debug_config.set(dbg);
-    }
-
-    pub fn reset_debug(&mut self, dbg: DebugConfig) {
-        let dbg = self.shared_mem.debug_config.get() & !dbg;
+    pub fn switch_debug(&mut self, dbg: DebugConfig) {
+        // let dbg = self.shared_mem.debug_config.get() ^ dbg;
         self.shared_mem.debug_config.set(dbg);
     }
 

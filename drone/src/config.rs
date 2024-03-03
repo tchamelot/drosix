@@ -1,34 +1,9 @@
 use anyhow::{Context, Result};
-use bitmask_enum::bitmask;
 use serde::{Deserialize, Serialize};
 
+use crate::types::{AnglePid, DebugConfig};
+
 const CONFIG_FILE: &'static str = "drosix.toml";
-
-/// Proportional Integral Derivative controller parameters
-#[repr(C)]
-#[derive(Serialize, Deserialize, Default, Copy, Clone, Debug)]
-pub struct Pid {
-    /// PID input gains
-    pub numerator: [f32; 3],
-    /// PID output gains
-    pub denominator: [f32; 2],
-}
-
-#[repr(C)]
-#[derive(Serialize, Deserialize, Default, Copy, Clone, Debug)]
-pub struct AnglePid {
-    pub roll: Pid,
-    pub pitch: Pid,
-    pub yaw: Pid,
-}
-
-#[bitmask(u32)]
-#[derive(Serialize, Deserialize)]
-pub enum DebugConfig {
-    PidLoop = 0b1,
-    PidNewData = 0b10,
-    PwmStep = 0b100,
-}
 
 /// Drosix configuration parameters
 #[derive(Serialize, Deserialize, Debug)]
@@ -43,7 +18,7 @@ pub struct DrosixParameters {
 
 impl DrosixParameters {
     pub fn load() -> Result<Self> {
-        let mut config = std::fs::read_to_string(CONFIG_FILE).context("Cannot open configuration file")?;
+        let config = std::fs::read_to_string(CONFIG_FILE).context("Cannot open configuration file")?;
         toml::from_str(&config).context("Cannot parse configuration file")
     }
 

@@ -1,7 +1,7 @@
 use crate::config::DrosixParameters;
 use crate::controller::{Controller, PruSharedMem};
-use crate::messages::{Answer, Command};
 use crate::sensor::Sensors;
+use crate::types::{Command, FlightCommand, Log};
 
 use mio::unix::SourceFd;
 use mio::{Events, Interest, Poll, Token};
@@ -24,13 +24,13 @@ pub struct FlightController<'a> {
     config: DrosixParameters,
     sensors: Sensors,
     controller: Controller<'a>,
-    last_cmd: Option<[f64; 4]>,
+    last_cmd: Option<FlightCommand>,
     server_rx: Receiver<Command>,
-    server_tx: Sender<Answer>,
+    server_tx: Sender<Log>,
 }
 
 impl<'a> FlightController<'a> {
-    pub fn new(server_rx: Receiver<Command>, server_tx: Sender<Answer>) -> Result<Self> {
+    pub fn new(server_rx: Receiver<Command>, server_tx: Sender<Log>) -> Result<Self> {
         let config = DrosixParameters::load()?;
         let sensors = Sensors::new()?;
         let controller = Controller::new()?;
@@ -88,30 +88,30 @@ impl<'a> FlightController<'a> {
                     DEBUG => unsafe {
                         let shared_mem = self.controller.handle_debug();
                         stdout().write_all(&start.elapsed().as_millis().to_le_bytes()).unwrap();
-                        stdout()
-                            .write_all(std::slice::from_raw_parts(
-                                (&shared_mem.pid_input as *const [VolatileCell<f32>; 7]) as *const u8,
-                                std::mem::size_of::<[VolatileCell<f32>; 7]>(),
-                            ))
-                            .unwrap();
-                        stdout()
-                            .write_all(std::slice::from_raw_parts(
-                                (&shared_mem.pid_output as *const [VolatileCell<u32>; 4]) as *const u8,
-                                std::mem::size_of::<[VolatileCell<f32>; 4]>(),
-                            ))
-                            .unwrap();
-                        stdout()
-                            .write_all(std::slice::from_raw_parts(
-                                (&shared_mem.v_pid as *const [VolatileCell<f32>; 3]) as *const u8,
-                                std::mem::size_of::<[VolatileCell<f32>; 3]>(),
-                            ))
-                            .unwrap();
-                        stdout()
-                            .write_all(std::slice::from_raw_parts(
-                                (&shared_mem.p_pid as *const [VolatileCell<f32>; 3]) as *const u8,
-                                std::mem::size_of::<[VolatileCell<f32>; 3]>(),
-                            ))
-                            .unwrap();
+                        // stdout()
+                        //     .write_all(std::slice::from_raw_parts(
+                        //         (&shared_mem.pid_input as *const [VolatileCell<f32>; 7]) as *const u8,
+                        //         std::mem::size_of::<[VolatileCell<f32>; 7]>(),
+                        //     ))
+                        //     .unwrap();
+                        // stdout()
+                        //     .write_all(std::slice::from_raw_parts(
+                        //         (&shared_mem.pid_output as *const [VolatileCell<u32>; 4]) as *const u8,
+                        //         std::mem::size_of::<[VolatileCell<f32>; 4]>(),
+                        //     ))
+                        //     .unwrap();
+                        // stdout()
+                        //     .write_all(std::slice::from_raw_parts(
+                        //         (&shared_mem.v_pid as *const [VolatileCell<f32>; 3]) as *const u8,
+                        //         std::mem::size_of::<[VolatileCell<f32>; 3]>(),
+                        //     ))
+                        //     .unwrap();
+                        // stdout()
+                        //     .write_all(std::slice::from_raw_parts(
+                        //         (&shared_mem.p_pid as *const [VolatileCell<f32>; 3]) as *const u8,
+                        //         std::mem::size_of::<[VolatileCell<f32>; 3]>(),
+                        //     ))
+                        //     .unwrap();
 
                         // println!(
                         //     "[{}] {:?}",
@@ -129,21 +129,23 @@ impl<'a> FlightController<'a> {
     }
 
     fn fly(&mut self) -> Result<()> {
-        let measures = self.sensors.handle_imu_event()?;
+        let mut measures = self.sensors.handle_imu_event()?;
 
-        let mut inputs = [
-            (-measures.euler[1]) as f32, // p_measure_x
-            (-measures.euler[0]) as f32, // p_measure_y
-            (-measures.euler[2]) as f32, // p_measure_z
-            (0) as f32,                  // thrust
-            (-measures.gyro[1]) as f32,  // v_measure_x
-            (-measures.gyro[0]) as f32,  // v_measure_y
-            (-measures.gyro[2]) as f32,  // v_measure_z
-        ];
+        measures.thrust = 0.0;
+        // Keeps for adjusting purpose
+        // let mut inputs = [
+        //     (-measures.euler[1]) as f32, // p_measure_x
+        //     (-measures.euler[0]) as f32, // p_measure_y
+        //     (-measures.euler[2]) as f32, // p_measure_z
+        //     (0) as f32,                  // thrust
+        //     (-measures.gyro[1]) as f32,  // v_measure_x
+        //     (-measures.gyro[0]) as f32,  // v_measure_y
+        //     (-measures.gyro[2]) as f32,  // v_measure_z
+        // ];
         if let Some(command) = self.last_cmd {
-            inputs[3] = inputs[3] + (command[0] * 99999.0) as f32;
+            measures.thrust += command.thrust * 99999.0;
         }
-        self.controller.set_pid_inputs(inputs);
+        self.controller.set_pid_inputs(measures);
         Ok(())
     }
 
@@ -152,29 +154,9 @@ impl<'a> FlightController<'a> {
             Ok(Command::Flight(cmd)) => {
                 self.last_cmd = Some(cmd);
             },
-            Ok(Command::SetPid {
-                pid,
-                config,
-            }) => {
-                // self.pids[pid] = config;
-                // self.server_tx.blocking_send(Answer::Pid {
-                //     pid,
-                //     config: self.pids[pid],
-                // });
-            },
-            Ok(Command::CommitPid) => {
-                // self.controller.set_pid_configs(self.pids);
-            },
-            Ok(Command::GetPid(pid)) => {
-                // self.server_tx.blocking_send(Answer::Pid {
-                //     pid,
-                //     config: self.pids[pid],
-                // });
-            },
-            Ok(Command::SubscribeDebug(dbg)) => self.controller.set_debug(dbg),
-            Ok(Command::UnsubscribeDebug(dbg)) => self.controller.reset_debug(dbg),
-            Ok(Command::Arm) => self.controller.set_armed(),
-            Ok(Command::Disarm) => self.controller.clear_armed(),
+            Ok(Command::SwitchDebug(dbg)) => self.controller.switch_debug(dbg),
+            Ok(Command::Armed(true)) => self.controller.set_armed(),
+            Ok(Command::Armed(false)) => self.controller.clear_armed(),
             _ => {},
         }
     }

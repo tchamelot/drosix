@@ -2,6 +2,7 @@
 #define __DROSIX_H__
 #include <stdint.h>
 #include "util.h"
+#include "shared-memory.h"
 #pragma RESET_MISRA("all")
 
 /* Drosix related event */
@@ -29,29 +30,12 @@
 #define MOTOR_4 (GPO_6)
 #define ALL_MOTORS (MOTOR_1 | MOTOR_2 | MOTOR_3 | MOTOR_4)
 
-/* Data abstraction */
-struct pid_parameter_t {
-    float a[3];
-    float b[2];
-};
-
-struct controller_t {
-    float inputs[7];
-    uint32_t outputs[4];
-    struct pid_parameter_t parameter[7];
-    uint32_t debug_location;
-    float p_pid[3];
-    float v_pid[3];
-    uint32_t cycle;
-    uint32_t stall;
-};
-
 #define DEBUG_PID_LOOP      (1 << 0)
 #define DEBUG_PID_NEW_DATA  (1 << 1)
 #define DEBUG_PWM_STEP      (1 << 2)
 
 #pragma DATA_SECTION(controller, ".sdata")
-volatile far struct controller_t controller;
+volatile far struct pru_shared_mem controller;
 
 #pragma CHECK_MISRA("none")
 #endif

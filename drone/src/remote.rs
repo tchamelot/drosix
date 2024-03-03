@@ -1,9 +1,9 @@
-use crate::config::DebugConfig;
-use crate::messages::Command;
 use gilrs::{Button, Event, EventType, Gilrs};
 use std::thread;
 use std::time;
 use tokio::sync::mpsc::Sender;
+
+use crate::types::{Angles, Command, DebugConfig, FlightCommand};
 
 pub fn remote(remote_tx: Sender<Command>) {
     let mut gilrs = Gilrs::new().unwrap();
@@ -25,12 +25,15 @@ pub fn remote(remote_tx: Sender<Command>) {
                 },
                 EventType::ButtonChanged(Button::LeftTrigger2, value, _) => {
                     remote_tx
-                        .blocking_send(Command::Flight([value.into(), 0.0, 0.0, 0.0]))
+                        .blocking_send(Command::Flight(FlightCommand {
+                            thrust: value.into(),
+                            angles: Angles::default(),
+                        }))
                         .expect("Cannot send command from remote to drone");
                 },
                 EventType::ButtonPressed(Button::DPadLeft, _) => {
                     remote_tx
-                        .blocking_send(Command::SubscribeDebug(DebugConfig::PidLoop))
+                        .blocking_send(Command::SwitchDebug(DebugConfig::PidLoop))
                         .expect("Cannot send debug command from remote to drone");
                 },
                 _ => {
