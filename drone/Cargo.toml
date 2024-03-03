@@ -36,6 +36,9 @@ git         = "https://github.com/tchamelot/mpu9250"
 branch      = "drosix"
 features    = ["i2c", "dmp_quat6", "dmp_accel", "dmp_gyro", "dmp_motion"]
 
+[build-dependencies]
+cbindgen = "0.26"
+heck = "0.4"
 
 [features]
 default = []

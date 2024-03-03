@@ -1,12 +1,15 @@
 #pragma once
 
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 enum debug_config {
   NoDebug = 0,
   PidLoop = 1,
   PidNewData = 2,
-  PwmStep = 4
+  PwmStep = 4,
 };
 
 struct pid {
@@ -34,7 +37,7 @@ struct odometry {
 
 typedef struct angle_pid angle_pid_t;
 
-typedef struct pid pid_parameter_t;
+typedef struct pid pid_t;
 
 typedef enum debug_config debug_config_t;
 
@@ -46,7 +49,7 @@ typedef struct angles angles_t;
 
 struct pru_shared_mem {
   angle_pid_t attitude_pid;
-  pid_parameter_t thrust_pid;
+  pid_t thrust_pid;
   angle_pid_t rate_pid;
   debug_config_t debug_config;
   odometry_t pid_input;

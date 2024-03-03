@@ -22,7 +22,7 @@ void clear_armed(void);
 void main(void) {
     uint32_t i;
     uint8_t run = 1U;
-    struct pid_t pids[7];
+    struct pid_controller_t pids[7];
     odometry_t odometry;
     angles_t rate_set_point;
     angles_t rate_command;
