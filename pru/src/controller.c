@@ -85,7 +85,7 @@ void main(void) {
 
             send_event(EVT_PID_OUTPUT);
 
-            if(controller.debug_config == PidLoop) {
+            if(controller.debug_config == DEBUG_CONFIG_PID_LOOP) {
               memcpy((void*)&controller.p_pid, (void*)&rate_set_point, sizeof(angles_t));
               memcpy((void*)&controller.v_pid, (void*)&rate_command, sizeof(angles_t));
               send_event(EVT_DEBUG);
@@ -111,7 +111,7 @@ void main(void) {
             controller.cycle = PRU0_CTRL.CYCLE - cycle;
             controller.stall = PRU0_CTRL.STALL - stall;
 #pragma CHECK_MISRA("+11.3")
-            if(controller.debug_config == PidNewData) {
+            if(controller.debug_config == DEBUG_CONFIG_PID_NEW_DATA) {
               send_event(EVT_DEBUG);
             }
             break;

@@ -1,0 +1,55 @@
+# See https://github.com/mozilla/cbindgen/blob/master/docs.md#cbindgentoml
+# for detailed documentation of every option here.
+
+language = "C"
+
+############## Options for Wrapping the Contents of the Header #################
+
+pragma_once = true
+include_version = false
+no_includes = true
+
+############################ Code Style Options ################################
+
+braces = "SameLine"
+line_length = 100
+tab_width = 2
+documentation = false
+line_endings = "LF" # also "CR", "CRLF", "Native"
+
+############################# Codegen Options ##################################
+
+style = "tag"
+sort_by = "Name" # default for `fn.sort_by` and `const.sort_by`
+usize_is_size_t = true
+
+# Export list is handled by build.rs
+[export]
+include = []
+exclude = []
+item_types = []
+renaming_overrides_prefixing = false
+
+[struct]
+rename_fields = "None"
+
+[enum]
+rename_variants = "QualifiedScreamingSnakeCase"
+add_sentinel = false
+
+[const]
+allow_static_const = true
+allow_constexpr = false
+sort_by = "Name"
+
+[macro_expansion]
+bitflags = false
+
+############## Options for How Your Rust library Should Be Parsed ##############
+
+[parse]
+parse_deps = true
+include = ["prusst"]
+exclude = []
+clean = false
+extra_bindings = []

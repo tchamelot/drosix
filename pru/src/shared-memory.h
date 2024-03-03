@@ -1,15 +1,10 @@
 #pragma once
 
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-
 enum debug_config {
-  NoDebug = 0,
-  PidLoop = 1,
-  PidNewData = 2,
-  PwmStep = 4,
+  DEBUG_CONFIG_NONE = 0,
+  DEBUG_CONFIG_PID_LOOP = 1,
+  DEBUG_CONFIG_PID_NEW_DATA = 2,
+  DEBUG_CONFIG_PWM_STEP = 4,
 };
 
 struct pid {

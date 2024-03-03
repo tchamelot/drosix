@@ -31,7 +31,7 @@ void main(void) {
         switch(check_event1()) {
         case EVT_PWM_STEP:
             CT_IEP.TMR_CMP_STS = 0x1U;
-            if(controller.debug_config == PwmStep) {
+            if(controller.debug_config == DEBUG_CONFIG_PWM_STEP) {
               send_event(EVT_DEBUG);
             }
             set_pins(ALL_MOTORS);
