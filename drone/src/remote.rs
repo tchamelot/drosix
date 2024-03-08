@@ -1,19 +1,19 @@
 use gilrs::{Button, Event, EventType, Gilrs};
-use std::thread;
-use std::time;
 use std::sync::mpsc::Sender;
+use std::time::Duration;
 
 use crate::types::{Angles, Command, DebugConfig, FlightCommand};
 
 pub fn remote(remote_tx: Sender<Command>) {
     let mut gilrs = Gilrs::new().unwrap();
+    let mut armed = false;
 
     'main: loop {
-        while let Some(Event {
+        if let Some(Event {
             id,
             event,
             time,
-        }) = gilrs.next_event()
+        }) = gilrs.next_event_blocking(Some(Duration::from_secs(5)))
         {
             match event {
                 EventType::Disconnected => {
@@ -24,6 +24,11 @@ pub fn remote(remote_tx: Sender<Command>) {
                     println!("{:?} New event from {}: Conected", time, id);
                 },
                 EventType::ButtonChanged(Button::LeftTrigger2, value, _) => {
+                    // First command to take off so the motors shall start
+                    if !armed {
+                        remote_tx.send(Command::Armed(true)).expect("Cannot send armed from remote to drone");
+                        armed = true;
+                    }
                     remote_tx
                         .send(Command::Flight(FlightCommand {
                             thrust: value.into(),
@@ -40,7 +45,12 @@ pub fn remote(remote_tx: Sender<Command>) {
                     // println!("Not handled event: {:?}", event);
                 },
             }
+        } else {
+            // No event during the previous second so the motors shall stop
+            if armed {
+                remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
+                armed = false;
+            }
         }
-        std::thread::sleep(time::Duration::from_millis(50));
     }
 }
