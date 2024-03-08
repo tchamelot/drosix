@@ -2,7 +2,5 @@
 
 members = [
     "drone",
-    "webapp",
-    "message",
     "model",
 ]

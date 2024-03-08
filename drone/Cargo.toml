@@ -4,7 +4,7 @@ cargo-features = ["per-package-target"]
 name = "drone"
 version = "0.1.0"
 authors = ["Thomas Chamelot <chamelot.thomas@gmail.com>"]
-edition = "2018"
+edition = "2021"
 default-target = "armv7-unknown-linux-gnueabihf"
 
 
