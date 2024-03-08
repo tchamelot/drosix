@@ -223,75 +223,122 @@ impl<'a> Drop for Controller<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mio::unix::SourceFd;
     use mio::{Events, Interest, Poll, Token};
     use std::thread;
     use std::time::Duration;
 
     #[test]
-    fn test_motors() {
-        const MOTOR_EVENT_MAP: [(Sysevt, Channel); 4] = [
-            (Sysevt::S20, Channel::C2), /* MOTOR_STATUS */
-            (Sysevt::S16, Channel::C1), /* MOTOR_STOP */
-            (Sysevt::S21, Channel::C1), /* PID_OUTPUT */
-            (Sysevt::S31, Channel::C3), /* DEBUG */
-        ];
-        const MOTOR_CHANNEL_MAP: [(Channel, Host); 3] = [
-            (Channel::C1, Host::Pru1),    /* PRU1 */
-            (Channel::C2, Host::Evtout0), /* HOST */
-            (Channel::C3, Host::Evtout1), /* HOST_DEBUG */
-        ];
-
-        let mut controller = Controller::new().unwrap();
-
-        // Configuring PRU subsystem
-        let mut conf = IntcConfig::new_empty();
-        conf.map_sysevts_to_channels(&MOTOR_EVENT_MAP);
-        conf.map_channels_to_hosts(&MOTOR_CHANNEL_MAP);
-        conf.auto_enable_sysevts();
-        conf.auto_enable_hosts();
-
-        controller.pru.intc.map_interrupts(&conf);
-
-        // Interruption event catching
+    fn test_controller() {
+        // Setup interrupt infrastructure
         let mut poll = Poll::new().context("Creating event poller").unwrap();
         let mut events = Events::with_capacity(8);
         const PRU_STATUS: Token = Token(0);
+        const PRU_DEBUG: Token = Token(1);
+
+        let mut controller = Controller::new().context("Cannot access PRU subsytem").unwrap();
+
         poll.registry()
-            .register(controller.register_pru_evt(), PRU_STATUS, Interest::READABLE)
-            .context("Regitering pru status event")
+            .register(&mut SourceFd(&controller.register_pru_evt()), PRU_STATUS, Interest::READABLE)
+            .unwrap();
+        poll.registry()
+            .register(&mut SourceFd(&controller.register_pru_debug()), PRU_DEBUG, Interest::READABLE)
             .unwrap();
 
-        // Start PRU motors
-        controller.start().unwrap();
-
-        // Upon start, PRU motors should send an event
-        poll.poll(&mut events, Some(Duration::from_millis(100))).context("Waiting for pru motors status").unwrap();
-        for event in events.iter() {
-            assert_eq!(PRU_STATUS, event.token());
+        // Start sequence
+        controller.start().context("Cannot start thre PRUs").unwrap();
+        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        if events.is_empty() {
+            panic!("PRUs did not start correctly");
+        } else {
+            let mut event_counter = 0;
+            for event in events.iter() {
+                if event.token() != PRU_STATUS {
+                    panic!("PRUs sent an unexpected interrupt at start-up");
+                }
+                event_counter += 1;
+            }
+            if event_counter != 1 {
+                panic!("PRUs sent too many interrupt at start-up");
+            }
         }
         assert!(controller.handle_event());
-        controller.pru.intc.clear_sysevt(Sysevt::S20); // Rearm interrupt for mock
 
-        println!("Motor started");
-        thread::sleep(Duration::from_secs(1));
-
-        for i in 0..4 {
-            thread::sleep(Duration::from_secs(1));
-            println!("Starting lso want to chmotor {}", i);
-            controller.set_motor_speed(i, 240_000).unwrap();
-            thread::sleep(Duration::from_secs(3));
-            controller.set_motor_speed(i, 199_999).unwrap();
+        // Check start unarmed
+        controller.switch_debug(DebugConfig::PidLoop);
+        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        if !events.is_empty() {
+            panic!("PRUs sent too many event_counter while unarmed");
         }
 
-        println!("Stopping motor...");
-        // Send stop event
+        // Check arming
+        controller.set_armed();
+        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        if events.is_empty() {
+            panic!("PRUs did not armed correctly");
+        } else {
+            for event in events.iter() {
+                if event.token() != PRU_DEBUG {
+                    panic!("PRUs sent an unexpected interrupt while armed");
+                }
+            }
+        }
+        controller.handle_debug();
+        controller.switch_debug(DebugConfig::PidLoop);
+
+        // Check sending data
+        controller.switch_debug(DebugConfig::PidNewData);
+        let input = Odometry {
+            attitude: Angles {
+                roll: 0.0,
+                pitch: 1.1,
+                yaw: 2.2,
+            },
+            rate: Angles {
+                roll: 3.3,
+                pitch: 4.4,
+                yaw: 5.5,
+            },
+            thrust: 6.6,
+        };
+        for _ in 0..10 {
+            controller.set_pid_inputs(input);
+            poll.poll(&mut events, Some(Duration::from_millis(10))).unwrap();
+            if events.is_empty() {
+                panic!("PRUs did not receive new data");
+            } else {
+                for event in events.iter() {
+                    if event.token() != PRU_DEBUG {
+                        panic!("PRUs sent an unexpected interrupt while armed");
+                    }
+                }
+            }
+            let shmem = controller.handle_debug();
+            assert_eq!(shmem.pid_input.get(), input);
+        }
+        controller.switch_debug(DebugConfig::PidNewData);
+
+        // Check unarming
+        controller.switch_debug(DebugConfig::PidLoop);
+        controller.clear_armed();
+        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        if !events.is_empty() {
+            panic!("PRUs sent too many event_counter while unarmed");
+        }
+        controller.handle_debug();
+
+        // Stop sequence
         controller.stop();
-        // Wait for acknowledge
-        poll.poll(&mut events, Some(Duration::from_millis(100))).context("Waiting for pru motors status").unwrap();
-        for event in events.iter() {
-            assert_eq!(PRU_STATUS, event.token());
+        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        if events.is_empty() {
+            panic!("PRUs did not stop correctly");
         }
         assert!(!controller.handle_event());
-        println!("Motor stopped");
     }
+
+    #[test]
+    fn test_pid_input() {}
+
+    #[test]
+    fn test_armed() {}
 }

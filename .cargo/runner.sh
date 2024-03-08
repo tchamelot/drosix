@@ -6,7 +6,7 @@ runner="root@192.168.6.1"
 error_handler() {
     case $1 in
         15) echo "Error could not connect to $runner";;
-        *) echo Unknown error line $@;;
+        *) echo $@;;
     esac
 }
 trap 'error_handler $LINENO' EXIT

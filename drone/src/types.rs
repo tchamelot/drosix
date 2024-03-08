@@ -30,7 +30,7 @@ pub enum DebugConfig {
 }
 
 #[repr(C)]
-#[derive(Serialize, Deserialize, Default, Copy, Clone, Debug)]
+#[derive(Serialize, Deserialize, Default, Copy, Clone, Debug, PartialEq)]
 pub struct Angles {
     pub roll: f32,
     pub pitch: f32,
@@ -38,7 +38,7 @@ pub struct Angles {
 }
 
 #[repr(C)]
-#[derive(Serialize, Deserialize, Default, Copy, Clone, Debug)]
+#[derive(Serialize, Deserialize, Default, Copy, Clone, Debug, PartialEq)]
 pub struct Odometry {
     pub attitude: Angles,
     pub rate: Angles,
