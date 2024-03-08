@@ -1,7 +1,7 @@
 use gilrs::{Button, Event, EventType, Gilrs};
 use std::thread;
 use std::time;
-use tokio::sync::mpsc::Sender;
+use std::sync::mpsc::Sender;
 
 use crate::types::{Angles, Command, DebugConfig, FlightCommand};
 
@@ -25,7 +25,7 @@ pub fn remote(remote_tx: Sender<Command>) {
                 },
                 EventType::ButtonChanged(Button::LeftTrigger2, value, _) => {
                     remote_tx
-                        .blocking_send(Command::Flight(FlightCommand {
+                        .send(Command::Flight(FlightCommand {
                             thrust: value.into(),
                             angles: Angles::default(),
                         }))
@@ -33,7 +33,7 @@ pub fn remote(remote_tx: Sender<Command>) {
                 },
                 EventType::ButtonPressed(Button::DPadLeft, _) => {
                     remote_tx
-                        .blocking_send(Command::SwitchDebug(DebugConfig::PidLoop))
+                        .send(Command::SwitchDebug(DebugConfig::PidLoop))
                         .expect("Cannot send debug command from remote to drone");
                 },
                 _ => {

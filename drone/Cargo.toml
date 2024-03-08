@@ -16,13 +16,6 @@ prusst              = { git = "https://github.com/tchamelot/prusst" }
 gpio-cdev           = "0.5"
 bitmask-enum        = "2.2.3"
 
-# Server
-tokio               = { version = "1.13", features = ["macros", "rt", "sync"] }
-futures             = { version = "0.3", features = ["alloc"], default-features = false }
-warp                = "0.2"
-bytes               = "0.5"
-webrtc-unreliable   = { git = "https://github.com/tchamelot/webrtc-unreliable.git" }
-
 # Parameters
 serde               = { version = "1.0", features = ["derive"] }
 toml                = "0.8"
@@ -39,7 +32,3 @@ features    = ["i2c", "dmp_quat6", "dmp_accel", "dmp_gyro", "dmp_motion"]
 [build-dependencies]
 cbindgen = "0.26"
 heck = "0.4"
-
-[features]
-default = []
-mock = []

@@ -1,30 +1,19 @@
+use std::sync::mpsc::channel;
 use std::thread;
-use tokio::sync::mpsc::channel;
 
 use drone::flight_controller::FlightController;
 use drone::remote::remote;
 
-#[cfg(feature = "mock")]
-mod mock;
-mod server;
-
-#[cfg(feature = "mock")]
-use mock::drone;
-use server::server;
-
 fn main() {
-    let (answer_tx, answer_rx) = channel(10);
+    let (answer_tx, answer_rx) = channel();
 
-    let (command_tx, command_rx) = channel(10);
+    let (command_tx, command_rx) = channel();
 
-    let mut controller = FlightController::new(command_rx, answer_tx)
-        .expect("Failed to start flight controller");
+    let mut controller = FlightController::new(command_rx, answer_tx).expect("Failed to start flight controller");
 
     let drone = thread::spawn(move || controller.run());
     let remote = thread::spawn(move || remote(command_tx));
-    // let server = thread::spawn(move || server(answer_rx, command_tx));
 
     drone.join().unwrap();
     remote.join().unwrap();
-    // server.join().unwrap();
 }

@@ -7,7 +7,7 @@ use mio::unix::SourceFd;
 use mio::{Events, Interest, Poll, Token};
 
 // use std::sync::mpsc::Receiver;
-use tokio::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender};
 
 use anyhow::{Context, Result};
 
