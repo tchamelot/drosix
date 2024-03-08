@@ -5,11 +5,12 @@ DOCKER_NAME := drosix_dev
 DROSIX_DL := drosix_dl
 DROSIX_OUTPUT := drosix_output
 CARGO_REGISTRY := drosix_cargo
+GENERATR := /home/tchamelot/workspace/structurizr-site-generatr/build/install/structurizr-site-generatr/bin/structurizr-site-generatr
 
 MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 TOP_PATH := $(dir $(MAKEFILE_PATH))
 
-.PHONY: docker-run $(DOCKER_IMAGE) $(DROSIX_DL) $(DROSIX_OUTPUT)
+.PHONY: docker-run $(DOCKER_IMAGE) $(DROSIX_DL) $(DROSIX_OUTPUT) doc
 
 docker-run: $(DOCKER_IMAGE) $(DROSIX_DL) $(DROSIX_OUTPUT) $(CARGO_REGISTRY)
 	@$(DOCKER) run --rm -it --name $(DOCKER_NAME) -h $(DOCKER_NAME) \
@@ -39,3 +40,6 @@ $(DROSIX_OUTPUT):
 
 $(CARGO_REGISTRY):
 	@$(DOCKER) volume inspect $@ > /dev/null || $(DOCKER) volume create $@
+
+doc:
+	@$(GENERATR) serve -w doc/workspace.dsl -a doc/assets -s doc/build -p 5555

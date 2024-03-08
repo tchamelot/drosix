@@ -1,0 +1,607 @@
+{
+  "id" : 1,
+  "name" : "Name",
+  "description" : "Description",
+  "lastModifiedDate" : "2024-02-23T15:02:15Z",
+  "properties" : {
+    "structurizr.dsl" : "d29ya3NwYWNlIHsKCiAgICBtb2RlbCB7CiAgICAgICAgdXNlciA9IHBlcnNvbiAiVXNlciIgIlBpbG90ZXMgdGhlIGRyb25lIHdpdGggYSByZW1vdGUgY29udHJvbGxlciIKICAgICAgICBkZXYgPSBwZXJzb24gIkRldiIgIkNvZGVzLCB0dW5lcyBhbmQgZGVidWciCgoKICAgICAgICBkcm9zaXggPSBzb2Z0d2FyZVN5c3RlbSAiRHJvc2l4IiAiRHJvbmUiIHsKICAgICAgICAgICAgaW11ID0gY29udGFpbmVyICJNUFU5MjUwIiAiSW5lcnRpYWwgbWVhc3VyZW1lbnQgdW5pdCIgIlByb3BpZXRhcnkiICJFeHRlcm5hbCIKICAgICAgICAgICAgcGFyYW1zID0gY29udGFpbmVyICJEcm9zaXggUGFyYW1ldGVycyIgIlN0b3JlcyBmbGlnaHQgcGFyYW1ldGVycyIgIlRPTUwiICJTdG9yYWdlIgogICAgICAgICAgICBmbGlnaHRDb250cm9sbGVyID0gY29udGFpbmVyICJGbGlnaHQgY29udHJvbGxlciIgIkZsaWdodHMgdGhlIGRyb25lIiAiUnVzdCB0aHJlYWQiIHsKICAgICAgICAgICAgICAgICFkb2NzIGRyb3NpeC9mbGlnaHRfY29udHJvbGxlcgoKICAgICAgICAgICAgICAgIGNvbmZpZ3VyYXRvciA9IGNvbXBvbmVudCAiQ29uZmlndXJhdG9yIiAiU3RvcmVzIERyb3NpeCBwYXJhbWV0ZXJzIiAiUnVzdCIKICAgICAgICAgICAgICAgIG1pc3Npb25Db250cm9sbGVyID0gY29tcG9uZW50ICJNaXNzaW9uIENvbnRyb2xsZXIiICJTY2hlZHVsZXMgYWxsIGNvbXBvbmVudHMgZXhlY3V0aW9uIiAiUnVzdCIKICAgICAgICAgICAgICAgIHBydUNvbnRyb2xsZXIgPSBjb21wb25lbnQgIlBSVSBjb250cm9sbGVyIiAiRXhwb3NlcyBBUEkgdG8gUFJVIHN1YnN5c3RlbXMiICJSdXN0IgogICAgICAgICAgICAgICAgc2Vuc29ycyA9IGNvbXBvbmVudCAiU2Vuc29ycyIgIkNvbmZpZ3VyZXMgYW5kIHJlYWRzIHNlbnNvcnMiICJSdXN0IgogICAgICAgICAgICB9CiAgICAgICAgICAgIHJlbW90ZWhhbmRsZXIgPSBjb250YWluZXIgIlJlbW90ZSBjb250cm9sbGVyIiAiSGFuZGxlIHJlbW90ZSBjb250cm9sbGVyIGlucHV0cyIgIlJ1c3QgdGhyZWFkIgogICAgICAgICAgICBzZXJ2ZXIgPSBjb250YWluZXIgIkJhY2tlbmQgc2VydmVyIiAiU2VydmVzIHNpbmdsZSBwYWdlIGFwcCwgZXhwb3NlcyBSRVNUIGJhY2tlbmQiICJSdXN0IHRocmVhZCIKICAgICAgICAgICAgcHJ1MCA9IGNvbnRhaW5lciAiUElEIGNvbnRyb2xsZXIiICJDb3Byb2Nlc3NvciBjb21wdXRpbmcgbW90b3JzIHNwZWVkIGNvbW1hbmQiICJDIgogICAgICAgICAgICBwcnUxID0gY29udGFpbmVyICJQV00gY29udHJvbGxlciIgIkNvcHJvY2Vzc29yIGNvbXB1dGluZyBQV00gc2lnbmFscyBmcm9tIG1vdG9yIHNwZWVkcyIgIkMiCiAgICAgICAgICAgIAogICAgICAgICAgICBpbXUgLT4gc2Vuc29ycyAiTm90aWZpZXMiICJHUElPIGludGVycnVwdCIKICAgICAgICAgICAgc2Vuc29ycyAtPiBpbXUgIkNvbmZpZ3VyZXMsIHJlYWRzIGRhdGEgZnJvbSIgIkkyQyIKICAgICAgICAgICAgCiAgICAgICAgICAgIHJlbW90ZWhhbmRsZXIgLT4gbWlzc2lvbkNvbnRyb2xsZXIgIlNlbmRzIGNvbW1hbmQiICJjaGFubmVsPENvbW1hbmQ+IgogICAgICAgICAgICBzZXJ2ZXIgLT4gZmxpZ2h0Q29udHJvbGxlciAiU2VuZHMgY29tbWFuZCIgImNoYW5uZWw8Q29tbWFuZD4iCiAgICAgICAgICAgIAogICAgICAgICAgICBjb25maWd1cmF0b3IgLT4gcGFyYW1zICJSZWFkcyBmcm9tLCB3cml0ZXMgdG8iICJGaWxlIHN5c3RlbSIKICAgICAgICAgICAgCiAgICAgICAgICAgIHBydUNvbnRyb2xsZXIgLT4gcHJ1MCAiQ29uZmlndXJlcywgTm90aWZpZXMgZXZlbnQsIHNlbmRzIGRhdGEgdG8iICJJbnRlcnJ1cHQsIHNoYXJlZCBtZW1vcnkiCiAgICAgICAgICAgIHBydUNvbnRyb2xsZXIgLT4gcHJ1MSAiQ29uZmlndXJlcyIgIlNoYXJlZCBtZW1vcnkiCiAgICAgICAgICAgIHBydTAgLT4gcHJ1Q29udHJvbGxlciAiTm90aWZpZXMgZXZlbnQiICJJbnRlcnJ1cHQiCiAgICAgICAgICAgIHBydTAgLT4gcHJ1MSAiTm90aWZpZXMgZXZlbnQsIHNlbmRzIGRhdGEgdG8iICJJbnRlcnJ1cHQiCiAgICAgICAgICAgIHBydTEgLT4gcHJ1MCAiTm90aWZpZXMgZXZlbnQiICJJbnRlcnJ1cHQiCiAgICAgICAgICAgIAogICAgICAgICAgICBtaXNzaW9uQ29udHJvbGxlciAtPiBjb25maWd1cmF0b3IgIkdldHMgLyBzZXRzIHBhcmFtZXRlcnMiICJBUEkiCiAgICAgICAgICAgIG1pc3Npb25Db250cm9sbGVyIC0+IHNlbnNvcnMgIlJlYWRzIGRhdGEiICJhc3luYyBBUEkiCiAgICAgICAgICAgIG1pc3Npb25Db250cm9sbGVyIC0+IHBydUNvbnRyb2xsZXIgIlVzZXMiICJBUEkiCiAgICAgICAgfQoKICAgICAgICAKICAgICAgICB1c2VyIC0+IHJlbW90ZWhhbmRsZXIgIlNlbmRzIGNvbW1hbmQgdG8iICJibHVldG9vdGgiCiAgICAgICAgZGV2IC0+IHNlcnZlciAiU2VuZHMgY29tbWFuZCB0byIKICAgICAgICBzZXJ2ZXIgLT4gZGV2ICJTZW5kcyBsb2cgdG8iCiAgICB9CgogICAgdmlld3MgewogICAgICAgIHN5c3RlbUNvbnRleHQgImRyb3NpeCIgIlN5c3RlbUNvbnRleHQiIHsKICAgICAgICAgICAgZGVmYXVsdAogICAgICAgICAgICBpbmNsdWRlICoKICAgICAgICAgICAgYXV0b0xheW91dAogICAgICAgIH0KICAgICAgICAKICAgICAgICBjb250YWluZXIgZHJvc2l4ICJDb250YWluZXJzIiB7CiAgICAgICAgICAgIGluY2x1ZGUgKgogICAgICAgICAgICBhdXRvTGF5b3V0CiAgICAgICAgfQogICAgICAgIAogICAgICAgIGNvbXBvbmVudCBmbGlnaHRDb250cm9sbGVyICJDb21wb25lbnRzIiB7CiAgICAgICAgICAgIGluY2x1ZGUgKgogICAgICAgICAgICBleGNsdWRlICJwcnUwIC0+IHBydTEiCiAgICAgICAgICAgIGV4Y2x1ZGUgInBydTEgLT4gcHJ1MCIKICAgICAgICAgICAgYXV0b0xheW91dAogICAgICAgIH0KCiAgICAgICAgc3R5bGVzIHsKICAgICAgICAgICAgZWxlbWVudCAiRXh0ZXJuYWwiIHsKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzk5OTk5OQogICAgICAgICAgICB9CiAgICAgICAgICAgIAogICAgICAgICAgICBlbGVtZW50ICJTdG9yYWdlIiB7CiAgICAgICAgICAgICAgICBzaGFwZSBDeWxpbmRlcgogICAgICAgICAgICB9CiAgICAgICAgfQogICAgICAgIHRoZW1lIGRlZmF1bHQKICAgIH0KICAgIAp9Cg=="
+  },
+  "configuration" : { },
+  "model" : {
+    "people" : [ {
+      "id" : "1",
+      "tags" : "Element,Person",
+      "properties" : {
+        "structurizr.dsl.identifier" : "user"
+      },
+      "name" : "User",
+      "description" : "Pilotes the drone with a remote controller",
+      "relationships" : [ {
+        "id" : "35",
+        "tags" : "Relationship",
+        "properties" : {
+          "structurizr.dsl.identifier" : "f120c5a5-4a81-4293-a52d-2c0a9533702f"
+        },
+        "sourceId" : "1",
+        "destinationId" : "11",
+        "description" : "Sends command to",
+        "technology" : "bluetooth"
+      }, {
+        "id" : "36",
+        "sourceId" : "1",
+        "destinationId" : "3",
+        "description" : "Sends command to",
+        "technology" : "bluetooth",
+        "linkedRelationshipId" : "35"
+      } ],
+      "location" : "Unspecified"
+    }, {
+      "id" : "2",
+      "tags" : "Element,Person",
+      "properties" : {
+        "structurizr.dsl.identifier" : "dev"
+      },
+      "name" : "Dev",
+      "description" : "Codes, tunes and debug",
+      "relationships" : [ {
+        "id" : "37",
+        "tags" : "Relationship",
+        "properties" : {
+          "structurizr.dsl.identifier" : "34b0af65-c515-463a-8a63-e0f3e22cef8f"
+        },
+        "sourceId" : "2",
+        "destinationId" : "12",
+        "description" : "Sends command to"
+      }, {
+        "id" : "38",
+        "sourceId" : "2",
+        "destinationId" : "3",
+        "description" : "Sends command to",
+        "linkedRelationshipId" : "37"
+      } ],
+      "location" : "Unspecified"
+    } ],
+    "softwareSystems" : [ {
+      "id" : "3",
+      "tags" : "Element,Software System",
+      "properties" : {
+        "structurizr.dsl.identifier" : "drosix"
+      },
+      "name" : "Drosix",
+      "description" : "Drone",
+      "relationships" : [ {
+        "id" : "40",
+        "sourceId" : "3",
+        "destinationId" : "2",
+        "description" : "Sends log to",
+        "linkedRelationshipId" : "39"
+      } ],
+      "location" : "Unspecified",
+      "containers" : [ {
+        "id" : "5",
+        "tags" : "Element,Container,Storage",
+        "properties" : {
+          "structurizr.dsl.identifier" : "params"
+        },
+        "name" : "Drosix Parameters",
+        "description" : "Stores flight parameters",
+        "technology" : "TOML",
+        "documentation" : { }
+      }, {
+        "id" : "11",
+        "tags" : "Element,Container",
+        "properties" : {
+          "structurizr.dsl.identifier" : "remotehandler"
+        },
+        "name" : "Remote controller",
+        "description" : "Handle remote controller inputs",
+        "relationships" : [ {
+          "id" : "19",
+          "tags" : "Relationship",
+          "properties" : {
+            "structurizr.dsl.identifier" : "afcc0cd1-f331-4147-8f40-16a8818341e5"
+          },
+          "sourceId" : "11",
+          "destinationId" : "8",
+          "description" : "Sends command",
+          "technology" : "channel<Command>"
+        }, {
+          "id" : "20",
+          "sourceId" : "11",
+          "destinationId" : "6",
+          "description" : "Sends command",
+          "technology" : "channel<Command>",
+          "linkedRelationshipId" : "19"
+        } ],
+        "technology" : "Rust thread",
+        "documentation" : { }
+      }, {
+        "id" : "6",
+        "tags" : "Element,Container",
+        "properties" : {
+          "structurizr.dsl.identifier" : "flightcontroller"
+        },
+        "name" : "Flight controller",
+        "description" : "Flights the drone",
+        "relationships" : [ {
+          "id" : "18",
+          "sourceId" : "6",
+          "destinationId" : "4",
+          "description" : "Configures, reads data from",
+          "technology" : "I2C",
+          "linkedRelationshipId" : "17"
+        }, {
+          "id" : "23",
+          "sourceId" : "6",
+          "destinationId" : "5",
+          "description" : "Reads from, writes to",
+          "technology" : "File system",
+          "linkedRelationshipId" : "22"
+        }, {
+          "id" : "25",
+          "sourceId" : "6",
+          "destinationId" : "13",
+          "description" : "Configures, Notifies event, sends data to",
+          "technology" : "Interrupt, shared memory",
+          "linkedRelationshipId" : "24"
+        }, {
+          "id" : "27",
+          "sourceId" : "6",
+          "destinationId" : "14",
+          "description" : "Configures",
+          "technology" : "Shared memory",
+          "linkedRelationshipId" : "26"
+        } ],
+        "technology" : "Rust thread",
+        "components" : [ {
+          "id" : "7",
+          "tags" : "Element,Component",
+          "properties" : {
+            "structurizr.dsl.identifier" : "configurator"
+          },
+          "name" : "Configurator",
+          "description" : "Stores Drosix parameters",
+          "relationships" : [ {
+            "id" : "22",
+            "tags" : "Relationship",
+            "properties" : {
+              "structurizr.dsl.identifier" : "32312f5f-4059-4dc0-b5ff-2d1a06159221"
+            },
+            "sourceId" : "7",
+            "destinationId" : "5",
+            "description" : "Reads from, writes to",
+            "technology" : "File system"
+          } ],
+          "technology" : "Rust",
+          "documentation" : { }
+        }, {
+          "id" : "9",
+          "tags" : "Element,Component",
+          "properties" : {
+            "structurizr.dsl.identifier" : "prucontroller"
+          },
+          "name" : "PRU controller",
+          "description" : "Exposes API to PRU subsystems",
+          "relationships" : [ {
+            "id" : "24",
+            "tags" : "Relationship",
+            "properties" : {
+              "structurizr.dsl.identifier" : "911b154d-de40-4847-9f02-96c6768f8d1a"
+            },
+            "sourceId" : "9",
+            "destinationId" : "13",
+            "description" : "Configures, Notifies event, sends data to",
+            "technology" : "Interrupt, shared memory"
+          }, {
+            "id" : "26",
+            "tags" : "Relationship",
+            "properties" : {
+              "structurizr.dsl.identifier" : "c5aa3e54-719d-49f4-98da-63732d09ec5d"
+            },
+            "sourceId" : "9",
+            "destinationId" : "14",
+            "description" : "Configures",
+            "technology" : "Shared memory"
+          } ],
+          "technology" : "Rust",
+          "documentation" : { }
+        }, {
+          "id" : "10",
+          "tags" : "Element,Component",
+          "properties" : {
+            "structurizr.dsl.identifier" : "sensors"
+          },
+          "name" : "Sensors",
+          "description" : "Configures and reads sensors",
+          "relationships" : [ {
+            "id" : "17",
+            "tags" : "Relationship",
+            "properties" : {
+              "structurizr.dsl.identifier" : "2a7abff0-a43b-45f3-ae34-6bcce13ad94b"
+            },
+            "sourceId" : "10",
+            "destinationId" : "4",
+            "description" : "Configures, reads data from",
+            "technology" : "I2C"
+          } ],
+          "technology" : "Rust",
+          "documentation" : { }
+        }, {
+          "id" : "8",
+          "tags" : "Element,Component",
+          "properties" : {
+            "structurizr.dsl.identifier" : "missioncontroller"
+          },
+          "name" : "Mission Controller",
+          "description" : "Schedules all components execution",
+          "relationships" : [ {
+            "id" : "32",
+            "tags" : "Relationship",
+            "properties" : {
+              "structurizr.dsl.identifier" : "7148e9f5-3e13-4d80-82a6-d9ed4c4cd8d2"
+            },
+            "sourceId" : "8",
+            "destinationId" : "7",
+            "description" : "Gets / sets parameters",
+            "technology" : "API"
+          }, {
+            "id" : "33",
+            "tags" : "Relationship",
+            "properties" : {
+              "structurizr.dsl.identifier" : "336fee45-e20c-49bf-a3a3-3d4a4a6a6b22"
+            },
+            "sourceId" : "8",
+            "destinationId" : "10",
+            "description" : "Reads data",
+            "technology" : "async API"
+          }, {
+            "id" : "34",
+            "tags" : "Relationship",
+            "properties" : {
+              "structurizr.dsl.identifier" : "033ae131-d372-4c81-9c88-6d4e7d569759"
+            },
+            "sourceId" : "8",
+            "destinationId" : "9",
+            "description" : "Uses",
+            "technology" : "API"
+          } ],
+          "technology" : "Rust",
+          "documentation" : { }
+        } ],
+        "documentation" : {
+          "sections" : [ {
+            "content" : "# PRU interfaces\n\nThe flight controller is responsible for the PRU subsystems.\n\n```mermaid\nsequenceDiagram\n    participant A\n    participant B\n```\n",
+            "format" : "Markdown",
+            "filename" : "pru_interface.md",
+            "order" : 1,
+            "title" : ""
+          } ]
+        }
+      }, {
+        "id" : "13",
+        "tags" : "Element,Container",
+        "properties" : {
+          "structurizr.dsl.identifier" : "pru0"
+        },
+        "name" : "PID controller",
+        "description" : "Coprocessor computing motors speed command",
+        "relationships" : [ {
+          "id" : "28",
+          "tags" : "Relationship",
+          "properties" : {
+            "structurizr.dsl.identifier" : "7c18400c-f729-43c3-a182-65b6ac0d47ca"
+          },
+          "sourceId" : "13",
+          "destinationId" : "9",
+          "description" : "Notifies event",
+          "technology" : "Interrupt"
+        }, {
+          "id" : "29",
+          "sourceId" : "13",
+          "destinationId" : "6",
+          "description" : "Notifies event",
+          "technology" : "Interrupt",
+          "linkedRelationshipId" : "28"
+        }, {
+          "id" : "30",
+          "tags" : "Relationship",
+          "properties" : {
+            "structurizr.dsl.identifier" : "9efd42f7-7ff2-47c1-bdaf-b772a0e019f8"
+          },
+          "sourceId" : "13",
+          "destinationId" : "14",
+          "description" : "Notifies event, sends data to",
+          "technology" : "Interrupt"
+        } ],
+        "technology" : "C",
+        "documentation" : { }
+      }, {
+        "id" : "4",
+        "tags" : "Element,Container,External",
+        "properties" : {
+          "structurizr.dsl.identifier" : "imu"
+        },
+        "name" : "MPU9250",
+        "description" : "Inertial measurement unit",
+        "relationships" : [ {
+          "id" : "15",
+          "tags" : "Relationship",
+          "properties" : {
+            "structurizr.dsl.identifier" : "5983cf08-470a-4872-88a7-ea31bd4e8354"
+          },
+          "sourceId" : "4",
+          "destinationId" : "10",
+          "description" : "Notifies",
+          "technology" : "GPIO interrupt"
+        }, {
+          "id" : "16",
+          "sourceId" : "4",
+          "destinationId" : "6",
+          "description" : "Notifies",
+          "technology" : "GPIO interrupt",
+          "linkedRelationshipId" : "15"
+        } ],
+        "technology" : "Propietary",
+        "documentation" : { }
+      }, {
+        "id" : "12",
+        "tags" : "Element,Container",
+        "properties" : {
+          "structurizr.dsl.identifier" : "server"
+        },
+        "name" : "Backend server",
+        "description" : "Serves single page app, exposes REST backend",
+        "relationships" : [ {
+          "id" : "21",
+          "tags" : "Relationship",
+          "properties" : {
+            "structurizr.dsl.identifier" : "8b88c729-40e8-4ed1-b89e-3c3da2faf9ee"
+          },
+          "sourceId" : "12",
+          "destinationId" : "6",
+          "description" : "Sends command",
+          "technology" : "channel<Command>"
+        }, {
+          "id" : "39",
+          "tags" : "Relationship",
+          "properties" : {
+            "structurizr.dsl.identifier" : "f4d3f161-9455-4c09-9261-25564cef3644"
+          },
+          "sourceId" : "12",
+          "destinationId" : "2",
+          "description" : "Sends log to"
+        } ],
+        "technology" : "Rust thread",
+        "documentation" : { }
+      }, {
+        "id" : "14",
+        "tags" : "Element,Container",
+        "properties" : {
+          "structurizr.dsl.identifier" : "pru1"
+        },
+        "name" : "PWM controller",
+        "description" : "Coprocessor computing PWM signals from motor speeds",
+        "relationships" : [ {
+          "id" : "31",
+          "tags" : "Relationship",
+          "properties" : {
+            "structurizr.dsl.identifier" : "96a96d2d-9a2b-4953-95fd-7d0c50be09e0"
+          },
+          "sourceId" : "14",
+          "destinationId" : "13",
+          "description" : "Notifies event",
+          "technology" : "Interrupt"
+        } ],
+        "technology" : "C",
+        "documentation" : { }
+      } ],
+      "documentation" : { }
+    } ]
+  },
+  "documentation" : { },
+  "views" : {
+    "systemContextViews" : [ {
+      "key" : "SystemContext",
+      "order" : 1,
+      "softwareSystemId" : "3",
+      "automaticLayout" : {
+        "implementation" : "Graphviz",
+        "rankDirection" : "TopBottom",
+        "rankSeparation" : 300,
+        "nodeSeparation" : 300,
+        "edgeSeparation" : 0,
+        "vertices" : false,
+        "applied" : false
+      },
+      "enterpriseBoundaryVisible" : true,
+      "elements" : [ {
+        "id" : "1",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "2",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "3",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "relationships" : [ {
+        "id" : "40"
+      }, {
+        "id" : "36"
+      }, {
+        "id" : "38"
+      } ]
+    } ],
+    "containerViews" : [ {
+      "key" : "Containers",
+      "order" : 2,
+      "softwareSystemId" : "3",
+      "automaticLayout" : {
+        "implementation" : "Graphviz",
+        "rankDirection" : "TopBottom",
+        "rankSeparation" : 300,
+        "nodeSeparation" : 300,
+        "edgeSeparation" : 0,
+        "vertices" : false,
+        "applied" : false
+      },
+      "externalSoftwareSystemBoundariesVisible" : false,
+      "elements" : [ {
+        "id" : "11",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "1",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "12",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "13",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "2",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "14",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "4",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "5",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "6",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "relationships" : [ {
+        "id" : "21"
+      }, {
+        "id" : "20"
+      }, {
+        "id" : "31"
+      }, {
+        "id" : "30"
+      }, {
+        "id" : "29"
+      }, {
+        "id" : "18"
+      }, {
+        "id" : "16"
+      }, {
+        "id" : "27"
+      }, {
+        "id" : "37"
+      }, {
+        "id" : "25"
+      }, {
+        "id" : "35"
+      }, {
+        "id" : "23"
+      }, {
+        "id" : "39"
+      } ]
+    } ],
+    "componentViews" : [ {
+      "key" : "Components",
+      "order" : 3,
+      "automaticLayout" : {
+        "implementation" : "Graphviz",
+        "rankDirection" : "TopBottom",
+        "rankSeparation" : 300,
+        "nodeSeparation" : 300,
+        "edgeSeparation" : 0,
+        "vertices" : false,
+        "applied" : false
+      },
+      "containerId" : "6",
+      "externalContainerBoundariesVisible" : false,
+      "elements" : [ {
+        "id" : "11",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "13",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "14",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "4",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "5",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "7",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "8",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "9",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "10",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "relationships" : [ {
+        "id" : "28"
+      }, {
+        "id" : "17"
+      }, {
+        "id" : "26"
+      }, {
+        "id" : "15"
+      }, {
+        "id" : "24"
+      }, {
+        "id" : "34"
+      }, {
+        "id" : "22"
+      }, {
+        "id" : "33"
+      }, {
+        "id" : "32"
+      }, {
+        "id" : "19"
+      } ]
+    } ],
+    "configuration" : {
+      "branding" : { },
+      "styles" : {
+        "elements" : [ {
+          "tag" : "External",
+          "background" : "#999999"
+        }, {
+          "tag" : "Storage",
+          "shape" : "Cylinder"
+        } ]
+      },
+      "themes" : [ "https://static.structurizr.com/themes/default/theme.json" ],
+      "terminology" : { },
+      "defaultView" : "SystemContext",
+      "lastSavedView" : "Components"
+    }
+  }
+}

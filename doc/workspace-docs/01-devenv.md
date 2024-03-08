@@ -17,10 +17,10 @@ You should now have a shell open in the container and you can run
 ```
 worker@drosix_dev:~$ make O=/home/worker/output -C buildroot beagleboneblue_defconfig
 ```
-to setup the buildroot environment in `/home/worker/output`.
+To set up the buildroot environment in `/home/worker/output`.
 
-Note that this folder is a Docker volume and will be saved between several run of the `make docker-run` commands.
-This permits to avoid rebuilding the entire each time you restart the container.
+Note that this folder is a Docker volume and will be saved between several runs of the `make docker-run` commands.
+It avoids rebuilding the entire each time you restart the container.
 
 Once the environment is set up, you can go in the output folder and run `make` to
 build the distribution or `make nconfig` to modify the configuration.
@@ -41,6 +41,19 @@ worker@drosix_dev:~$ cargo build
 ```
 
 The resulting binaries can be found on the host in `target/armv7-unknown-linux-gnueabihf/release`.
+
+## Accessing Drosix 
+
+You can access Drosix by using `ssh`.
+You can upload file to Drosix with `scp`.
+
+Internally Drosix uses `dropbear` as SSH server.
+
+!!! tip "Newer openssh version"
+    With newer openssh version `scp` relies on `sftp-server` to handle the file transfer.
+    Use `scp -O` to force legacy `scp`
+
+!!! todo "Document cargo runner"
 
 ## Webassmebly
 
@@ -89,7 +102,7 @@ It ensures that all the folders in `/home/worker` are owned by `worker` by runni
 
 ### Rust environment
 
-Rust needs an hint to find the linker when cross compiling.
+Rust needs a hint to find the linker when cross compiling.
 This is adding those lines into `$HOME/.cargo/config`
 
 ```
