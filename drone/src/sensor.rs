@@ -59,9 +59,9 @@ impl Sensors {
                 Ok(Odometry {
                     attitude,
                     rate: Angles {
-                        roll: gyro[1],
-                        pitch: gyro[0],
-                        yaw: gyro[2],
+                        roll: gyro[2],
+                        pitch: gyro[1],
+                        yaw: gyro[0],
                     },
                     thrust,
                 })

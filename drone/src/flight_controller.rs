@@ -67,14 +67,11 @@ impl<'a> FlightController<'a> {
         let start = Instant::now();
 
         'control_loop: loop {
-            poll.poll(&mut events, Some(Duration::from_millis(100))).context("Polling events")?;
+            poll.poll(&mut events, Some(Duration::from_millis(20))).context("Polling events")?;
             if events.is_empty() {
-                self.sensors = Sensors::new().context("Restarting sensors")?;
-                poll.registry()
-                    .register(&mut SourceFd(&self.sensors.register_imu_event()?), IMU, Interest::READABLE)
-                    .context("Registering imu event")?;
-
                 // println!("IMU timeout");
+                self.sensors.handle_imu_event()?;
+                self.sensors.clean_imu()?;
             }
             for event in events.iter() {
                 match event.token() {
