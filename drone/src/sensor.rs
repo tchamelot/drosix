@@ -93,3 +93,78 @@ fn compute_thrust(accel: &[f32; 3], angles: &Angles) -> f32 {
         + f32::from(accel[2]) * angles.pitch.cos() * angles.roll.cos()
         - 9.5
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mio::unix::SourceFd;
+    use mio::{Events, Interest, Poll, Token};
+    use std::thread;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn test_sensors_config() {
+        // Setup interrupt infrastructure
+        let mut poll = Poll::new().context("Creating event poller").unwrap();
+        let mut events = Events::with_capacity(8);
+        const SENSORS: Token = Token(0);
+
+        let mut sensors = Sensors::new().context("Cannot start sensors").unwrap();
+        sensors
+            .register_imu_event()
+            .and_then(|event| {
+                poll.registry().register(&mut SourceFd(&event), SENSORS, Interest::READABLE).context("Should not reach")
+            })
+            .context("Cannot register sensors interrupt");
+
+        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        if events.is_empty() {
+            panic!("Sensors did not start correctly");
+        }
+
+        sensors.handle_imu_event().unwrap();
+
+        // Check interrupt frequency is 100hZ
+        let start = Instant::now();
+        for _ in 0..100 {
+            poll.poll(&mut events, Some(Duration::from_millis(110))).unwrap();
+            if events.is_empty() {
+                panic!("Sensors time-out reached");
+            }
+            sensors.handle_imu_event().unwrap();
+        }
+        let period = start.elapsed().as_millis() / 100;
+        if period > 11 {
+            panic!("Sensors interrupt to slow: period is {}", period / 100);
+        }
+        if period < 9 {
+            panic!("Sensors interrupt to fast: period is {}", period / 100);
+        }
+    }
+
+    // Cannot reproduce case where the flight controller loop does not get any interrupt from
+    // sensors
+    #[test]
+    #[ignore]
+    fn test_sensors_reset() {
+        // Setup interrupt infrastructure
+        let mut poll = Poll::new().context("Creating event poller").unwrap();
+        let mut events = Events::with_capacity(8);
+        const SENSORS: Token = Token(0);
+
+        let mut sensors = Sensors::new().context("Cannot start sensors").unwrap();
+        sensors
+            .register_imu_event()
+            .and_then(|event| {
+                poll.registry().register(&mut SourceFd(&event), SENSORS, Interest::READABLE).context("Should not reach")
+            })
+            .context("Cannot register sensors interrupt");
+
+        // Let several interrupts pass to see if we get the next one
+        thread::sleep(Duration::from_secs(5));
+        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        if events.is_empty() {
+            panic!("Sensors stoped sending interrupt");
+        }
+    }
+}
