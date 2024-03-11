@@ -1,4 +1,3 @@
-use bitmask_enum::bitmask;
 use serde::{Deserialize, Serialize};
 
 /// Proportional Integral Derivative controller parameters

@@ -54,6 +54,20 @@ impl Default for PruSharedMem {
     }
 }
 
+impl PruSharedMem {
+    pub fn dump_raw(&self) -> &[u8] {
+        unsafe {
+            std::slice::from_raw_parts(
+                (&self.pid_input as *const VolatileCell<Odometry>) as *const u8,
+                std::mem::size_of::<VolatileCell<Odometry>>()
+                    + std::mem::size_of::<[VolatileCell<u32>; 4]>()
+                    + std::mem::size_of::<VolatileCell<Angles>>()
+                    + std::mem::size_of::<VolatileCell<Angles>>(),
+            )
+        }
+    }
+}
+
 const EVENT_MAP: [(Sysevt, Channel); 9] = [
     (Sysevt::S17, Channel::C0), /* CONTROLLER_STOP */
     (Sysevt::S18, Channel::C0), /* PID_NEW_DATA */
@@ -335,10 +349,4 @@ mod tests {
         }
         assert!(!controller.handle_event());
     }
-
-    #[test]
-    fn test_pid_input() {}
-
-    #[test]
-    fn test_armed() {}
 }

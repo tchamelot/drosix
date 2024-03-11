@@ -1,20 +1,20 @@
 use crate::config::DrosixParameters;
-use crate::controller::{Controller, PruSharedMem};
+use crate::controller::Controller;
 use crate::sensor::Sensors;
-use crate::types::{Command, FlightCommand, Log};
+use crate::types::{Command, DebugConfig, FlightCommand, Log};
 
 use mio::unix::SourceFd;
 use mio::{Events, Interest, Poll, Token};
 
-// use std::sync::mpsc::Receiver;
 use std::sync::mpsc::{Receiver, Sender};
 
 use anyhow::{Context, Result};
 
-use std::io::{stdout, Write};
+use std::fs::File;
+use std::io::Write;
 use std::time::{Duration, Instant};
 
-use prusst::util::VolatileCell;
+const LOG_FILE: &'static str = "/tmp/drosix.log";
 
 const IMU: Token = Token(0);
 const CONTROLLER: Token = Token(1);
@@ -47,6 +47,7 @@ impl<'a> FlightController<'a> {
     pub fn run(&mut self) -> Result<()> {
         let mut poll = Poll::new().context("Creating event poller")?;
         let mut events = Events::with_capacity(8);
+        let mut log = File::create(LOG_FILE).context("Cannot create a log file")?;
 
         poll.registry()
             .register(&mut SourceFd(&self.controller.register_pru_evt()), CONTROLLER, Interest::READABLE)
@@ -56,14 +57,14 @@ impl<'a> FlightController<'a> {
             .context("Registering imu event")?;
         poll.registry()
             .register(&mut SourceFd(&self.controller.register_pru_debug()), DEBUG, Interest::READABLE)
-            .context("Registering debug event");
+            .context("Registering debug event")?;
 
         self.controller.set_rate_pid(self.config.rate_pid);
         self.controller.set_rate_pid(self.config.attitude_pid);
+        self.controller.switch_debug(self.config.debug_config);
         self.controller.start()?;
 
         let start = Instant::now();
-        // self.controller.set_debug(1);
 
         'control_loop: loop {
             poll.poll(&mut events, Some(Duration::from_millis(100))).context("Polling events")?;
@@ -81,37 +82,12 @@ impl<'a> FlightController<'a> {
                     CONTROLLER => {
                         if !self.controller.handle_event() {
                             break 'control_loop;
-                        } else {
-                            self.controller.set_armed();
                         }
                     },
-                    DEBUG => unsafe {
+                    DEBUG => {
                         let shared_mem = self.controller.handle_debug();
-                        stdout().write_all(&start.elapsed().as_millis().to_le_bytes()).unwrap();
-                        // stdout()
-                        //     .write_all(std::slice::from_raw_parts(
-                        //         (&shared_mem.pid_input as *const [VolatileCell<f32>; 7]) as *const u8,
-                        //         std::mem::size_of::<[VolatileCell<f32>; 7]>(),
-                        //     ))
-                        //     .unwrap();
-                        // stdout()
-                        //     .write_all(std::slice::from_raw_parts(
-                        //         (&shared_mem.pid_output as *const [VolatileCell<u32>; 4]) as *const u8,
-                        //         std::mem::size_of::<[VolatileCell<f32>; 4]>(),
-                        //     ))
-                        //     .unwrap();
-                        // stdout()
-                        //     .write_all(std::slice::from_raw_parts(
-                        //         (&shared_mem.v_pid as *const [VolatileCell<f32>; 3]) as *const u8,
-                        //         std::mem::size_of::<[VolatileCell<f32>; 3]>(),
-                        //     ))
-                        //     .unwrap();
-                        // stdout()
-                        //     .write_all(std::slice::from_raw_parts(
-                        //         (&shared_mem.p_pid as *const [VolatileCell<f32>; 3]) as *const u8,
-                        //         std::mem::size_of::<[VolatileCell<f32>; 3]>(),
-                        //     ))
-                        //     .unwrap();
+                        log.write_all(&start.elapsed().as_millis().to_le_bytes()).unwrap();
+                        log.write_all(shared_mem.dump_raw()).unwrap();
 
                         // println!(
                         //     "[{}] {:?}",

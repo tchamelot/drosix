@@ -5,7 +5,7 @@ use drone::flight_controller::FlightController;
 use drone::remote::remote;
 
 fn main() {
-    let (answer_tx, answer_rx) = channel();
+    let (answer_tx, _answer_rx) = channel();
 
     let (command_tx, command_rx) = channel();
 
@@ -14,6 +14,6 @@ fn main() {
     let drone = thread::spawn(move || controller.run());
     let remote = thread::spawn(move || remote(command_tx));
 
-    drone.join().unwrap();
+    drone.join().unwrap().unwrap();
     remote.join().unwrap();
 }
