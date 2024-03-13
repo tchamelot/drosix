@@ -237,31 +237,25 @@ impl<'a> Drop for Controller<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mio::unix::SourceFd;
-    use mio::{Events, Interest, Poll, Token};
-    use std::thread;
+    use crate::polling::Poller;
+    use mio::{Interest, Token};
     use std::time::Duration;
 
     #[test]
     fn test_controller() {
         // Setup interrupt infrastructure
-        let mut poll = Poll::new().context("Creating event poller").unwrap();
-        let mut events = Events::with_capacity(8);
+        let mut poller = Poller::new(8).unwrap();
         const PRU_STATUS: Token = Token(0);
         const PRU_DEBUG: Token = Token(1);
 
         let mut controller = Controller::new().context("Cannot access PRU subsytem").unwrap();
 
-        poll.registry()
-            .register(&mut SourceFd(&controller.register_pru_evt()), PRU_STATUS, Interest::READABLE)
-            .unwrap();
-        poll.registry()
-            .register(&mut SourceFd(&controller.register_pru_debug()), PRU_DEBUG, Interest::READABLE)
-            .unwrap();
+        poller.register(controller.register_pru_evt(), PRU_STATUS, Interest::READABLE).unwrap();
+        poller.register(controller.register_pru_debug(), PRU_DEBUG, Interest::READABLE).unwrap();
 
         // Start sequence
         controller.start().context("Cannot start thre PRUs").unwrap();
-        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
         if events.is_empty() {
             panic!("PRUs did not start correctly");
         } else {
@@ -280,14 +274,14 @@ mod tests {
 
         // Check start unarmed
         controller.switch_debug(DebugConfig::PidLoop);
-        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
         if !events.is_empty() {
             panic!("PRUs sent too many event_counter while unarmed");
         }
 
         // Check arming
         controller.set_armed();
-        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
         if events.is_empty() {
             panic!("PRUs did not armed correctly");
         } else {
@@ -317,7 +311,7 @@ mod tests {
         };
         for _ in 0..10 {
             controller.set_pid_inputs(input);
-            poll.poll(&mut events, Some(Duration::from_millis(10))).unwrap();
+            let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
             if events.is_empty() {
                 panic!("PRUs did not receive new data");
             } else {
@@ -335,7 +329,7 @@ mod tests {
         // Check unarming
         controller.switch_debug(DebugConfig::PidLoop);
         controller.clear_armed();
-        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
         if !events.is_empty() {
             panic!("PRUs sent too many event_counter while unarmed");
         }
@@ -343,7 +337,7 @@ mod tests {
 
         // Stop sequence
         controller.stop();
-        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
         if events.is_empty() {
             panic!("PRUs did not stop correctly");
         }

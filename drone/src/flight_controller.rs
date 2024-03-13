@@ -1,10 +1,10 @@
 use crate::config::DrosixParameters;
 use crate::controller::Controller;
+use crate::polling::Poller;
 use crate::sensor::Sensors;
-use crate::types::{Command, DebugConfig, FlightCommand, Log};
+use crate::types::{Command, FlightCommand, Log};
 
-use mio::unix::SourceFd;
-use mio::{Events, Interest, Poll, Token};
+use mio::{Interest, Token};
 
 use std::sync::mpsc::{Receiver, Sender};
 
@@ -45,19 +45,12 @@ impl<'a> FlightController<'a> {
     }
 
     pub fn run(&mut self) -> Result<()> {
-        let mut poll = Poll::new().context("Creating event poller")?;
-        let mut events = Events::with_capacity(8);
+        let mut poller = Poller::new(8)?;
         let mut log = File::create(LOG_FILE).context("Cannot create a log file")?;
 
-        poll.registry()
-            .register(&mut SourceFd(&self.controller.register_pru_evt()), CONTROLLER, Interest::READABLE)
-            .context("Registering controller event")?;
-        poll.registry()
-            .register(&mut SourceFd(&self.sensors.register_imu_event()?), IMU, Interest::READABLE)
-            .context("Registering imu event")?;
-        poll.registry()
-            .register(&mut SourceFd(&self.controller.register_pru_debug()), DEBUG, Interest::READABLE)
-            .context("Registering debug event")?;
+        poller.register(self.controller.register_pru_evt(), CONTROLLER, Interest::READABLE)?;
+        poller.register(self.sensors.register_imu_event()?, IMU, Interest::READABLE)?;
+        poller.register(self.controller.register_pru_debug(), DEBUG, Interest::READABLE)?;
 
         self.controller.set_rate_pid(self.config.rate_pid);
         self.controller.set_rate_pid(self.config.attitude_pid);
@@ -67,7 +60,7 @@ impl<'a> FlightController<'a> {
         let start = Instant::now();
 
         'control_loop: loop {
-            poll.poll(&mut events, Some(Duration::from_millis(20))).context("Polling events")?;
+            let events = poller.poll(Some(Duration::from_millis(20)))?;
             if events.is_empty() {
                 // println!("IMU timeout");
                 self.sensors.handle_imu_event()?;

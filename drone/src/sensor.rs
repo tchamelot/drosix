@@ -97,27 +97,21 @@ fn compute_thrust(accel: &[f32; 3], angles: &Angles) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mio::unix::SourceFd;
-    use mio::{Events, Interest, Poll, Token};
+    use crate::polling::Poller;
+    use mio::{Interest, Token};
     use std::thread;
     use std::time::{Duration, Instant};
 
     #[test]
     fn test_sensors_config() {
         // Setup interrupt infrastructure
-        let mut poll = Poll::new().context("Creating event poller").unwrap();
-        let mut events = Events::with_capacity(8);
+        let mut poller = Poller::new(8).unwrap();
         const SENSORS: Token = Token(0);
 
         let mut sensors = Sensors::new().context("Cannot start sensors").unwrap();
-        sensors
-            .register_imu_event()
-            .and_then(|event| {
-                poll.registry().register(&mut SourceFd(&event), SENSORS, Interest::READABLE).context("Should not reach")
-            })
-            .context("Cannot register sensors interrupt");
+        poller.register(sensors.register_imu_event().unwrap(), SENSORS, Interest::READABLE).unwrap();
 
-        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
         if events.is_empty() {
             panic!("Sensors did not start correctly");
         }
@@ -127,7 +121,7 @@ mod tests {
         // Check interrupt frequency is 100hZ
         let start = Instant::now();
         for _ in 0..100 {
-            poll.poll(&mut events, Some(Duration::from_millis(110))).unwrap();
+            let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
             if events.is_empty() {
                 panic!("Sensors time-out reached");
             }
@@ -148,21 +142,15 @@ mod tests {
     #[ignore]
     fn test_sensors_reset() {
         // Setup interrupt infrastructure
-        let mut poll = Poll::new().context("Creating event poller").unwrap();
-        let mut events = Events::with_capacity(8);
+        let mut poller = Poller::new(8).unwrap();
         const SENSORS: Token = Token(0);
 
         let mut sensors = Sensors::new().context("Cannot start sensors").unwrap();
-        sensors
-            .register_imu_event()
-            .and_then(|event| {
-                poll.registry().register(&mut SourceFd(&event), SENSORS, Interest::READABLE).context("Should not reach")
-            })
-            .context("Cannot register sensors interrupt");
+        poller.register(sensors.register_imu_event().unwrap(), SENSORS, Interest::READABLE).unwrap();
 
         // Let several interrupts pass to see if we get the next one
         thread::sleep(Duration::from_secs(5));
-        poll.poll(&mut events, Some(Duration::from_secs(1))).unwrap();
+        let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
         if events.is_empty() {
             panic!("Sensors stoped sending interrupt");
         }
