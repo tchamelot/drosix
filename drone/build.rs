@@ -1,7 +1,7 @@
 use heck::ToSnakeCase;
 use std::env;
 
-const EXPORT_LIST: &[&str] = &["Pid", "AnglePid", "Odometry", "Angles", "DebugConfig", "PruSharedMem", "VolatileCell"];
+const EXPORT_LIST: &[&str] = &["Pid", "AnglePid", "Odometry", "Angles", "DebugConfig", "SharedMem", "VolatileCell"];
 
 fn main() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();

@@ -1,7 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use prusst::util::VolatileCell;
-use prusst::{Channel, Evtout, EvtoutIrq, Host, IntcConfig, Pruss, Sysevt};
-use std::os::unix::io::{AsRawFd, RawFd};
+use prusst::{Channel, Evtout, EvtoutIrq, Host, Intc, IntcConfig, MemSegment, PruLoader, Sysevt};
 
 use std::fs::File;
 
@@ -14,7 +13,7 @@ const PID_FW: &str = "/lib/firmware/controller.bin";
 /// This structure should only be allocated once by the PRU controller.
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-pub struct PruSharedMem {
+pub struct SharedMem {
     /// PID parameters for attitude controller
     pub attitude_pid: VolatileCell<AnglePid>,
     /// PID parameters for thrust controller
@@ -37,9 +36,9 @@ pub struct PruSharedMem {
     pub stall: VolatileCell<u32>,
 }
 
-impl Default for PruSharedMem {
+impl Default for SharedMem {
     fn default() -> Self {
-        PruSharedMem {
+        SharedMem {
             attitude_pid: VolatileCell::new(AnglePid::default()),
             thrust_pid: VolatileCell::new(Pid::default()),
             rate_pid: VolatileCell::new(AnglePid::default()),
@@ -50,20 +49,6 @@ impl Default for PruSharedMem {
             v_pid: VolatileCell::new(Angles::default()),
             cycle: VolatileCell::new(0),
             stall: VolatileCell::new(0),
-        }
-    }
-}
-
-impl PruSharedMem {
-    pub fn dump_raw(&self) -> &[u8] {
-        unsafe {
-            std::slice::from_raw_parts(
-                (&self.pid_input as *const VolatileCell<Odometry>) as *const u8,
-                std::mem::size_of::<VolatileCell<Odometry>>()
-                    + std::mem::size_of::<[VolatileCell<u32>; 4]>()
-                    + std::mem::size_of::<VolatileCell<Angles>>()
-                    + std::mem::size_of::<VolatileCell<Angles>>(),
-            )
         }
     }
 }
@@ -86,44 +71,40 @@ const CHANNEL_MAP: [(Channel, Host); 4] = [
     (Channel::C3, Host::Evtout1), /* HOST_DEBUG */
 ];
 
-/// Interface between the Linux part and the PRUs subsystems.
-pub struct Controller<'a> {
-    pru: Pruss<'a>,
-    shared_mem: &'a mut PruSharedMem,
-    status_evt: EvtoutIrq,
-    debug_evt: EvtoutIrq,
+/// Abstraction for PRU interface.
+pub struct PruController<'a> {
+    /// File handle for PRU status interrupt
+    pub status: EvtoutIrq,
+    /// File handle for PRU debug interrupt
+    pub debug: EvtoutIrq,
+    intc: &'a Intc,
     running: bool,
+    shared_mem: &'a mut SharedMem,
 }
 
-impl<'a> Controller<'a> {
-    /// Create a new instance of the PRU controller with default PID parameters
-    pub fn new() -> Result<Self> {
-        // Init PRU events
+impl<'a> PruController<'a> {
+    /// Creates a new controller taking ownership of the PRU component by holding references to them.
+    pub fn new(intc: &'a Intc, mem: &'a mut MemSegment) -> Self {
+        let status = intc.register_irq(Evtout::E0);
+        let debug = intc.register_irq(Evtout::E1);
+        let shared_mem = mem.alloc(SharedMem::default());
+        Self {
+            status,
+            debug,
+            intc,
+            shared_mem,
+            running: false,
+        }
+    }
+
+    /// Return expected interrupt config for this controller.
+    pub fn config() -> IntcConfig {
         let mut int_conf = IntcConfig::new_empty();
         int_conf.map_sysevts_to_channels(&EVENT_MAP);
         int_conf.map_channels_to_hosts(&CHANNEL_MAP);
         int_conf.auto_enable_sysevts();
         int_conf.auto_enable_hosts();
-        let mut pru = Pruss::new(&int_conf).context("Intanciating PRUSS")?;
-
-        // Init PRU shared mem
-        let shared_mem = pru.dram2.alloc(PruSharedMem::default());
-        // FIXME this might be the ugliest use of transmute
-        // Use transmute to extend the lifetime. It is ok because pru has the
-        // lifetime 'a and the controller ref has the same lifetime.
-        // Moreover, the ref is not visible outside of the Controller
-        let shared_mem = unsafe { std::mem::transmute(shared_mem) };
-
-        let status_evt = pru.intc.register_irq(Evtout::E0);
-        let debug_evt = pru.intc.register_irq(Evtout::E1);
-
-        Ok(Controller {
-            pru,
-            shared_mem,
-            status_evt,
-            debug_evt,
-            running: false,
-        })
+        int_conf
     }
 
     pub fn set_attitude_pid(&mut self, config: AnglePid) {
@@ -134,13 +115,14 @@ impl<'a> Controller<'a> {
         self.shared_mem.rate_pid.set(config);
     }
 
-    /// Start the PRU (load and launch firmwares)
-    pub fn start(&mut self) -> Result<()> {
+    /// Starts the PRU (load and launch firmwares).
+    pub fn start(pru0: &mut PruLoader, pru1: &mut PruLoader) -> Result<()> {
         // Load PRU code
         let mut pid_fw = File::open(PID_FW).context("Opening PID controller firmware")?;
         let mut motor_fw = File::open(MOTORS_FW).context("Opening ESC controller firmware")?;
-        let mut contoller_code = self.pru.pru0.load_code(&mut pid_fw).context("Loading PID controller firmware")?;
-        let mut motor_code = self.pru.pru1.load_code(&mut motor_fw).context("Loading ESC controller firmware")?;
+        let mut contoller_code = pru0.load_code(&mut pid_fw).context("Loading PID controller firmware")?;
+        let mut motor_code = pru1.load_code(&mut motor_fw).context("Loading ESC controller firmware")?;
+        // TODO get handle over PruCode
         unsafe {
             contoller_code.run();
             motor_code.run();
@@ -148,23 +130,15 @@ impl<'a> Controller<'a> {
         Ok(())
     }
 
-    /// Return a polling event linked to PRU status change interrupt
-    pub fn register_pru_evt(&self) -> RawFd {
-        self.status_evt.as_raw_fd()
-    }
-
-    /// Return a polling event linked to PRU debug interrupt
-    pub fn register_pru_debug(&self) -> RawFd {
-        self.debug_evt.as_raw_fd()
-    }
-
-    /// Handle a status change event
-    /// Return true if the flight controller is running
-    /// Return false if the flight controller has stopped whether because of
-    /// an error or because of the natural ending of the firmware
+    /// Handles a status event
+    /// Return true if the PRUs are running
+    /// Return false if the PRUs have stopped whether because of an error or because of the natural ending of the
+    /// firmware
+    ///
+    /// This function shall be called to re-enable status event.
     pub fn handle_event(&mut self) -> bool {
-        self.pru.intc.clear_sysevt(Sysevt::S19);
-        self.pru.intc.enable_host(Evtout::E0);
+        self.intc.clear_sysevt(Sysevt::S19);
+        self.intc.enable_host(Evtout::E0);
         if !self.running {
             self.running = true;
         } else {
@@ -174,61 +148,81 @@ impl<'a> Controller<'a> {
         self.running
     }
 
-    /// Handle a debug event and return the current shared mem state
-    pub fn handle_debug(&mut self) -> &PruSharedMem {
-        self.pru.intc.clear_sysevt(Sysevt::S31);
-        self.pru.intc.enable_host(Evtout::E1);
+    /// Handles a debug event
+    ///
+    /// This function shall be called to re-enable debug event.
+    pub fn handle_debug(&mut self) -> &SharedMem {
+        self.intc.clear_sysevt(Sysevt::S31);
+        self.intc.enable_host(Evtout::E1);
         self.shared_mem
     }
 
     /// Set speed for the given motor
+    /// The speed shall be between 199999 and 299999.
+    ///
+    /// This function will return an error for other speed values.
     pub fn set_motor_speed(&mut self, motor: usize, speed: u32) -> Result<()> {
         if motor > 3 {
-            return Err(()).ok().context(format!("Cannot set speed for motor {}", motor));
+            bail!("Cannot set speed for motor {}", motor);
         }
         if speed < 199_999 || speed > 299_999 {
-            return Err(())
-                .ok()
-                .context(format!("Cannot set motor {} speed to {} range is [199999;299999]", motor, speed));
+            bail!("Cannot set motor {} speed to {} range is [199999;299999]", motor, speed);
         }
         self.shared_mem.pid_output[motor].set(speed);
-        self.pru.intc.send_sysevt(Sysevt::S21);
+        self.intc.send_sysevt(Sysevt::S21);
         Ok(())
     }
 
-    /// Send new values to the PID controller
-    /// New values will be processed only if the motor are armed
+    /// Sends new values to the PID controller
+    /// New values will be processed only if the motor are [armed](PruController::set_armed).
     pub fn set_pid_inputs(&mut self, inputs: Odometry) {
         self.shared_mem.pid_input.set(inputs);
-        self.pru.intc.send_sysevt(Sysevt::S18);
+        self.intc.send_sysevt(Sysevt::S18);
     }
 
-    /// Arm the motor making the PID controller start
+    /// Arms the motor making the PID controller start.
     pub fn set_armed(&mut self) {
-        self.pru.intc.send_sysevt(Sysevt::S22);
+        self.intc.send_sysevt(Sysevt::S22);
     }
 
-    /// Disarm the motor making the PID controller stop
+    /// Disarms the motor making the PID controller stop.
     pub fn clear_armed(&mut self) {
-        self.pru.intc.send_sysevt(Sysevt::S23);
+        self.intc.send_sysevt(Sysevt::S23);
     }
 
+    /// Changes the PRU debug configuration
+    /// If the configuration is different from [`DebugConfig::None`] the PRUs will trigger an event
+    /// through [`PruController::debug`]. Use [`PruController::handle_debug`] after a debug event to
+    /// re-enable the debug event.
     pub fn switch_debug(&mut self, dbg: DebugConfig) {
-        // let dbg = self.shared_mem.debug_config.get() ^ dbg;
         self.shared_mem.debug_config.set(dbg);
     }
 
-    /// Stop the PRU subsystems.
+    /// Stops the PRU subsystems.
     /// The stop is effective after receiving a new status change event.
-    /// The `handle_event` function should return false after this event.
+    /// The [`PruController::handle_event`] function should return false after this event.
     pub fn stop(&mut self) {
         if self.running {
-            self.pru.intc.send_sysevt(Sysevt::S16);
+            self.intc.send_sysevt(Sysevt::S16);
+        }
+    }
+
+    /// Dump the content of the shared memory related to the PID to a bytearray
+    /// Read the code to see the bytearray layout.
+    pub fn dump_raw(&self) -> &[u8] {
+        unsafe {
+            std::slice::from_raw_parts(
+                (&self.shared_mem.pid_input as *const VolatileCell<Odometry>) as *const u8,
+                std::mem::size_of::<VolatileCell<Odometry>>()
+                    + std::mem::size_of::<[VolatileCell<u32>; 4]>()
+                    + std::mem::size_of::<VolatileCell<Angles>>()
+                    + std::mem::size_of::<VolatileCell<Angles>>(),
+            )
         }
     }
 }
 
-impl<'a> Drop for Controller<'a> {
+impl<'a> Drop for PruController<'a> {
     fn drop(&mut self) {
         self.stop()
     }
@@ -239,22 +233,24 @@ mod tests {
     use super::*;
     use crate::polling::Poller;
     use mio::{Interest, Token};
+    use prusst::Pruss;
     use std::time::Duration;
 
     #[test]
     fn test_controller() {
         // Setup interrupt infrastructure
+        let mut pru = Pruss::new(&PruController::config()).context("Instanciating PRUSS").unwrap();
         let mut poller = Poller::new(8).unwrap();
         const PRU_STATUS: Token = Token(0);
         const PRU_DEBUG: Token = Token(1);
 
-        let mut controller = Controller::new().context("Cannot access PRU subsytem").unwrap();
+        let mut controller = PruController::new(&pru.intc, &mut pru.dram2);
 
-        poller.register(controller.register_pru_evt(), PRU_STATUS, Interest::READABLE).unwrap();
-        poller.register(controller.register_pru_debug(), PRU_DEBUG, Interest::READABLE).unwrap();
+        poller.register(&controller.status, PRU_STATUS, Interest::READABLE).unwrap();
+        poller.register(&controller.debug, PRU_DEBUG, Interest::READABLE).unwrap();
 
         // Start sequence
-        controller.start().context("Cannot start thre PRUs").unwrap();
+        PruController::start(&mut pru.pru0, &mut pru.pru1).context("Cannot start thre PRUs").unwrap();
         let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
         if events.is_empty() {
             panic!("PRUs did not start correctly");

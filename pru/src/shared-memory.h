@@ -42,7 +42,7 @@ typedef uint32_t u32;
 
 typedef struct angles angles_t;
 
-struct pru_shared_mem {
+struct shared_mem {
   angle_pid_t attitude_pid;
   pid_t thrust_pid;
   angle_pid_t rate_pid;

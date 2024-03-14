@@ -16,7 +16,7 @@ use crate::types::{Angles, Odometry};
 
 pub struct Sensors {
     imu: Mpu9250<I2cDevice<I2cdev>, Dmp>,
-    imu_pin: Option<LineEventHandle>,
+    imu_pin: LineEventHandle,
 }
 
 impl Sensors {
@@ -28,29 +28,29 @@ impl Sensors {
             .read_to_end(&mut dmp_firmware)
             .context("Reading mpu9250 firmware")?;
 
-        let mut mpu9250 = MpuConfig::dmp().dmp_rate(DmpRate::_100Hz).build(i2c);
-        mpu9250.init(&mut Delay, &dmp_firmware).map_err(|_| Error::msg("Statring mpu9250"))?;
-        mpu9250.reset_fifo(&mut Delay).map_err(|_| Error::msg("Clearing mpu9250 data"))?;
-
-        Ok(Self {
-            imu: mpu9250,
-            imu_pin: None,
-        })
-    }
-
-    pub fn register_imu_event(&mut self) -> Result<RawFd> {
         let mut chip = Chip::new("/dev/gpiochip3").context("Opening GPIO")?;
         // 117 : gpiochip3 => 3*32 = 96. 117 - 96 = 21
         let pin = chip.get_line(21).context("Accessing IMU interrupt pin")?;
         let pin_event = pin
             .events(LineRequestFlags::INPUT, EventRequestFlags::FALLING_EDGE, "mpu9250")
             .context("Registering IMU interrupt")?;
-        self.imu_pin = Some(pin_event);
-        self.imu_pin.as_ref().context("Unreachable").map(|x| x.as_raw_fd())
+
+        let mut mpu9250 = MpuConfig::dmp().dmp_rate(DmpRate::_100Hz).build(i2c);
+        mpu9250.init(&mut Delay, &dmp_firmware).map_err(|_| Error::msg("Statring mpu9250"))?;
+        mpu9250.reset_fifo(&mut Delay).map_err(|_| Error::msg("Clearing mpu9250 data"))?;
+
+        Ok(Self {
+            imu: mpu9250,
+            imu_pin: pin_event,
+        })
+    }
+
+    pub fn imu_event(&mut self) -> RawFd {
+        self.imu_pin.as_raw_fd()
     }
 
     pub fn handle_imu_event(&mut self) -> Result<Odometry> {
-        self.imu_pin.as_mut().and_then(|pin| pin.get_event().ok()).context("Accessing IMU interru pin")?;
+        self.imu_pin.get_event().context("Accessing IMU interrupt pin")?;
         match self.imu.dmp_all() {
             Ok(measure) => {
                 let attitude = quat_to_angles(&measure.quaternion);
@@ -109,7 +109,7 @@ mod tests {
         const SENSORS: Token = Token(0);
 
         let mut sensors = Sensors::new().context("Cannot start sensors").unwrap();
-        poller.register(sensors.register_imu_event().unwrap(), SENSORS, Interest::READABLE).unwrap();
+        poller.register(&sensors.imu_event(), SENSORS, Interest::READABLE).unwrap();
 
         let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
         if events.is_empty() {
@@ -146,7 +146,7 @@ mod tests {
         const SENSORS: Token = Token(0);
 
         let mut sensors = Sensors::new().context("Cannot start sensors").unwrap();
-        poller.register(sensors.register_imu_event().unwrap(), SENSORS, Interest::READABLE).unwrap();
+        poller.register(&sensors.imu_event(), SENSORS, Interest::READABLE).unwrap();
 
         // Let several interrupts pass to see if we get the next one
         thread::sleep(Duration::from_secs(5));

@@ -9,7 +9,7 @@ fn main() {
 
     let (command_tx, command_rx) = channel();
 
-    let mut controller = FlightController::new(command_rx, answer_tx).expect("Failed to start flight controller");
+    let mut controller = FlightController::new(command_rx, answer_tx);
 
     let drone = thread::spawn(move || controller.run());
     let remote = thread::spawn(move || remote(command_tx));

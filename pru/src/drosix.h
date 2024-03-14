@@ -35,7 +35,7 @@
 #define DEBUG_PWM_STEP      (1 << 2)
 
 #pragma DATA_SECTION(controller, ".sdata")
-volatile far struct pru_shared_mem controller;
+volatile far struct shared_mem controller;
 
 #pragma CHECK_MISRA("none")
 #endif

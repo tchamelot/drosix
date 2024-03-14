@@ -1,5 +1,5 @@
 use crate::config::DrosixParameters;
-use crate::controller::Controller;
+use crate::controller::PruController;
 use crate::polling::Poller;
 use crate::sensor::Sensors;
 use crate::types::{Command, FlightCommand, Log};
@@ -10,6 +10,7 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use anyhow::{Context, Result};
 
+use prusst::Pruss;
 use std::fs::File;
 use std::io::Write;
 use std::time::{Duration, Instant};
@@ -20,42 +21,40 @@ const IMU: Token = Token(0);
 const CONTROLLER: Token = Token(1);
 const DEBUG: Token = Token(2);
 
-pub struct FlightController<'a> {
-    config: DrosixParameters,
-    sensors: Sensors,
-    controller: Controller<'a>,
+pub struct FlightController {
     last_cmd: Option<FlightCommand>,
     server_rx: Receiver<Command>,
     server_tx: Sender<Log>,
 }
 
-impl<'a> FlightController<'a> {
-    pub fn new(server_rx: Receiver<Command>, server_tx: Sender<Log>) -> Result<Self> {
-        let config = DrosixParameters::load()?;
-        let sensors = Sensors::new()?;
-        let controller = Controller::new()?;
-        Ok(Self {
-            sensors,
-            controller,
+impl<'a> FlightController {
+    pub fn new(server_rx: Receiver<Command>, server_tx: Sender<Log>) -> Self {
+        Self {
             last_cmd: None,
-            config,
             server_rx,
             server_tx,
-        })
+        }
     }
 
     pub fn run(&mut self) -> Result<()> {
+        let config = DrosixParameters::load()?;
         let mut poller = Poller::new(8)?;
+
+        let mut pru = Pruss::new(&PruController::config()).context("Instanciating PRUSS")?;
+        let mut controller = PruController::new(&pru.intc, &mut pru.dram2);
+        poller.register(&controller.status, CONTROLLER, Interest::READABLE)?;
+        poller.register(&controller.debug, DEBUG, Interest::READABLE)?;
+
+        let mut sensors = Sensors::new()?;
+
         let mut log = File::create(LOG_FILE).context("Cannot create a log file")?;
 
-        poller.register(self.controller.register_pru_evt(), CONTROLLER, Interest::READABLE)?;
-        poller.register(self.sensors.register_imu_event()?, IMU, Interest::READABLE)?;
-        poller.register(self.controller.register_pru_debug(), DEBUG, Interest::READABLE)?;
+        poller.register(&sensors.imu_event(), IMU, Interest::READABLE)?;
 
-        self.controller.set_rate_pid(self.config.rate_pid);
-        self.controller.set_rate_pid(self.config.attitude_pid);
-        self.controller.switch_debug(self.config.debug_config);
-        self.controller.start()?;
+        controller.set_rate_pid(config.rate_pid);
+        controller.set_rate_pid(config.attitude_pid);
+        controller.switch_debug(config.debug_config);
+        PruController::start(&mut pru.pru0, &mut pru.pru1)?;
 
         let start = Instant::now();
 
@@ -63,21 +62,21 @@ impl<'a> FlightController<'a> {
             let events = poller.poll(Some(Duration::from_millis(20)))?;
             if events.is_empty() {
                 // println!("IMU timeout");
-                self.sensors.handle_imu_event()?;
-                self.sensors.clean_imu()?;
+                sensors.handle_imu_event()?;
+                sensors.clean_imu()?;
             }
             for event in events.iter() {
                 match event.token() {
-                    IMU => self.fly()?,
+                    IMU => self.fly(&mut sensors, &mut controller)?,
                     CONTROLLER => {
-                        if !self.controller.handle_event() {
+                        if !controller.handle_event() {
                             break 'control_loop;
                         }
                     },
                     DEBUG => {
-                        let shared_mem = self.controller.handle_debug();
+                        controller.handle_debug();
                         log.write_all(&start.elapsed().as_millis().to_le_bytes()).unwrap();
-                        log.write_all(shared_mem.dump_raw()).unwrap();
+                        log.write_all(controller.dump_raw()).unwrap();
 
                         // println!(
                         //     "[{}] {:?}",
@@ -88,14 +87,14 @@ impl<'a> FlightController<'a> {
                     _ => (),
                 }
             }
-            self.handle_command();
+            self.handle_command(&mut controller);
         }
 
         Ok(())
     }
 
-    fn fly(&mut self) -> Result<()> {
-        let mut measures = self.sensors.handle_imu_event()?;
+    fn fly(&mut self, sensors: &mut Sensors, controller: &mut PruController) -> Result<()> {
+        let mut measures = sensors.handle_imu_event()?;
 
         measures.thrust = 0.0;
         // Keeps for adjusting purpose
@@ -111,18 +110,18 @@ impl<'a> FlightController<'a> {
         if let Some(command) = self.last_cmd {
             measures.thrust += command.thrust * 99999.0;
         }
-        self.controller.set_pid_inputs(measures);
+        controller.set_pid_inputs(measures);
         Ok(())
     }
 
-    fn handle_command(&mut self) {
+    fn handle_command(&mut self, controller: &mut PruController) {
         match self.server_rx.try_recv() {
             Ok(Command::Flight(cmd)) => {
                 self.last_cmd = Some(cmd);
             },
-            Ok(Command::SwitchDebug(dbg)) => self.controller.switch_debug(dbg),
-            Ok(Command::Armed(true)) => self.controller.set_armed(),
-            Ok(Command::Armed(false)) => self.controller.clear_armed(),
+            Ok(Command::SwitchDebug(dbg)) => controller.switch_debug(dbg),
+            Ok(Command::Armed(true)) => controller.set_armed(),
+            Ok(Command::Armed(false)) => controller.clear_armed(),
             _ => {},
         }
     }

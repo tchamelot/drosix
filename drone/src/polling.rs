@@ -19,7 +19,7 @@ impl Poller {
         })
     }
 
-    pub fn register<T: AsRawFd>(&mut self, event: T, token: Token, interest: Interest) -> Result<()> {
+    pub fn register<T: AsRawFd>(&mut self, event: &T, token: Token, interest: Interest) -> Result<()> {
         self.inner
             .registry()
             .register(&mut SourceFd(&event.as_raw_fd()), token, interest)
