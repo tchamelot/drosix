@@ -11,9 +11,9 @@ default-target = "armv7-unknown-linux-gnueabihf"
 [dependencies]
 # Flight controller
 hal                 = { version = "0.3", package = "linux-embedded-hal" }
-mio                 = { version = "0.7", features = ["os-poll", "os-ext", "net"] } 
+mio                 = { version = "0.8", features = ["os-poll", "os-ext"] } 
+mpu9250             = { version = "0.25", features = ["i2c", "dmp"] }
 prusst              = { git = "https://github.com/tchamelot/prusst" }
-gpio-cdev           = "0.5"
 
 # Parameters
 serde               = { version = "1.0", features = ["derive"] }
@@ -23,10 +23,6 @@ toml                = "0.8"
 gilrs = "0.10"
 
 anyhow              = "1.0"
-[dependencies.mpu9250]
-git         = "https://github.com/tchamelot/mpu9250"
-branch      = "drosix"
-features    = ["i2c", "dmp_quat6", "dmp_accel", "dmp_gyro", "dmp_motion"]
 
 [build-dependencies]
 cbindgen = "0.26"

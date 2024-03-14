@@ -1,10 +1,10 @@
-use std::fs::File;
+use std::fs;
 use std::io::Read;
 use std::os::unix::io::{AsRawFd, RawFd};
 
 use anyhow::{Context, Error, Result};
 
-use gpio_cdev::{Chip, EventRequestFlags, LineEventHandle, LineRequestFlags};
+use hal::gpio_cdev::{Chip, EventRequestFlags, LineEventHandle, LineRequestFlags};
 use hal::Delay;
 use hal::I2cdev;
 
@@ -20,24 +20,29 @@ pub struct Sensors {
 }
 
 impl Sensors {
+    /// Initiates all the sensors:
+    /// - IMU: MPU9250
     pub fn new() -> Result<Self> {
         let i2c = I2cdev::new("/dev/i2c-2").context("Opening i2c bus")?;
-        let mut dmp_firmware: Vec<u8> = Vec::new();
-        File::open("/lib/firmware/mpu_firmware.bin")
-            .unwrap()
-            .read_to_end(&mut dmp_firmware)
-            .context("Reading mpu9250 firmware")?;
 
-        let mut chip = Chip::new("/dev/gpiochip3").context("Opening GPIO")?;
+        let mut mpu_config = MpuConfig::dmp();
+        mpu_config
+            .dmp_rate(DmpRate::_100Hz)
+            .dmp_features_raw_gyro(true)
+            .dmp_features_raw_accel(true)
+            .dmp_features_quat6(true)
+            .dmp_features_gyro_auto_calibrate(true);
+
+        let dmp_firmware = fs::read("/lib/firmware/mpu_firmware.bin")?;
+
         // 117 : gpiochip3 => 3*32 = 96. 117 - 96 = 21
-        let pin = chip.get_line(21).context("Accessing IMU interrupt pin")?;
-        let pin_event = pin
-            .events(LineRequestFlags::INPUT, EventRequestFlags::FALLING_EDGE, "mpu9250")
+        let pin_event = Chip::new("/dev/gpiochip3")
+            .and_then(|mut chip| chip.get_line(21))
+            .and_then(|line| line.events(LineRequestFlags::INPUT, EventRequestFlags::FALLING_EDGE, "mpu9250"))
             .context("Registering IMU interrupt")?;
 
-        let mut mpu9250 = MpuConfig::dmp().dmp_rate(DmpRate::_100Hz).build(i2c);
-        mpu9250.init(&mut Delay, &dmp_firmware).map_err(|_| Error::msg("Statring mpu9250"))?;
-        mpu9250.reset_fifo(&mut Delay).map_err(|_| Error::msg("Clearing mpu9250 data"))?;
+        let mpu9250 = Mpu9250::dmp(i2c, &mut Delay, &mut mpu_config, &dmp_firmware)
+            .map_err(|e| Error::msg(format!("Statring mpu9250 {:?}", e)))?;
 
         Ok(Self {
             imu: mpu9250,
@@ -51,11 +56,11 @@ impl Sensors {
 
     pub fn handle_imu_event(&mut self) -> Result<Odometry> {
         self.imu_pin.get_event().context("Accessing IMU interrupt pin")?;
-        match self.imu.dmp_all() {
+        match self.imu.dmp_all::<[f32; 3], [f64; 4]>() {
             Ok(measure) => {
-                let attitude = quat_to_angles(&measure.quaternion);
-                let gyro = measure.gyro;
-                let thrust = compute_thrust(&measure.accel, &attitude);
+                let attitude = quat_to_angles(&measure.quaternion.unwrap());
+                let gyro = measure.gyro.unwrap();
+                let thrust = compute_thrust(&measure.accel.unwrap(), &attitude);
                 Ok(Odometry {
                     attitude,
                     rate: Angles {
@@ -70,9 +75,9 @@ impl Sensors {
         }
     }
 
+    /// Reset the IMU internal state keeping the same config
     pub fn clean_imu(&mut self) -> Result<()> {
-        self.imu.reset_fifo(&mut Delay).map_err(|_| Error::msg("Reseting IMU communication"))?;
-        Ok(())
+        self.imu.reset_fifo(&mut Delay).map_err(|e| Error::msg(format!("Reseting IMU communication {:?}", e)))
     }
 }
 

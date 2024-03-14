@@ -54,8 +54,8 @@ impl<'a> FlightController {
         controller.set_rate_pid(config.rate_pid);
         controller.set_rate_pid(config.attitude_pid);
         controller.switch_debug(config.debug_config);
-        PruController::start(&mut pru.pru0, &mut pru.pru1)?;
 
+        PruController::start(&mut pru.pru0, &mut pru.pru1)?;
         let start = Instant::now();
 
         'control_loop: loop {
