@@ -1,12 +1,33 @@
 # Mathematical model
 
+## Notations
+
+- $`T`$: Thrust in N
+- $`M`$: Moment in N.m
+- $`\sigma`$: Throttle $`[0;1]`$
+- $`\Omega_M`$: Motor speed in rad/s
+- $`N`$: Propeller speed in RPM
+- $`U`$: Voltage in V
+- $`\omega`$: Quadcopter angular velocity in rad/s
+- $`\theta`$: Quadcopter angular position in rad
+- $`J`$: Moment of inertia in kg.m2
+
+## Laplace transform and differential equation
+
+Considering a function $`f(t)`$, the following equation is used to go from Laplace to differential equation:
+
+```math
+f'(s) = s.f(s) - f(0) \rArr \frac{\partial f}{dt} = s.f - f(0) 
+```
+
+
 
 ## Propulsion
 
-A quadcopter is built with four system of propulsion.
-The propulsion system is composed of a motor and a propeller mounted on it.
-Here we consider a propulsion system composed of a BLDC motor and a two blades propeller.
-Each propulsion group produces a thrust $`T`$ in N and a moment $`M`$ in N.m such as:
+A quadcopter has four propulsion systems.
+A propulsion system is composed of a motor and a propeller mounted on it.
+This model considers a propulsion system using a BDLC motor along with a two blades propeller.
+Each propulsion system produces a thrust and a moment such as:
 
 ```math
 \begin{aligned}
@@ -15,41 +36,48 @@ M = C_M \rho (\frac{N}{60})^2 D_{p}^5
 \end{aligned}
 ```
 
-where $`N`$ represents the propeller speed in RPM, $`D_p`$ is the propeller diameter in m and $`C_M`$ and $`C_T`$ are the thrust and moment coefficients.
-$`C_M`$ and $`C_T`$ are presented in the equations above, they can be approximated by [flyeval](flyeval.com) website.
+Where $`D_p`$ is the propeller diameter in m and $`C_M`$ and $`C_T`$ are the thrust and moment coefficients.
+$`C_M`$ and $`C_T`$ can be approximated using the [flyeval](flyeval.com) website.
 
-The propeller is directly mounted on the motor, so they spin at the same speed.
-In the case of a BLDC motor, the speed is controller by an electronic speed controller (ESC).
-The ESC control the DC equivalent voltage applied to the motor between \[0-$`U_{bat}`$\]V.
-The ESC input is $`\sigma`$ such as:
+The propeller and the motor spin at the same speeds.
+In the case of a BLDC motor, an electronic speed controller (ESC) regulates the motor speed.
+The ESC controls the DC equivalent voltage applied to the motor between \[0-$`U_{bat}`$\]V depending on the input throttle such as:
 
 ```math
 U_{ESC} = \sigma U_{bat}
 ```
 
-The motor is almost proportional to the input voltage.
-Only the mechanical mode of the system is considered for the dynamic.
-This hypothesis is made because the electrical mode of the motor is much faster.
-Then the motor speed can be written as:
+BDLS motors transfer function is second order with a mechanical mode and an electrical mode.
+This model simplifies the electrical mode because it is much faster than the mechanical mode.
+The simplified transfer function for a BDLC motor is:
 
 ```math
 \Omega_M = \frac{K_M}{T_M S + 1} \sigma
 ```
 
-Actually, ESCs have a dead zone where $`\sigma \neq 0`$ still provides $`V_{DC} = 0`$ V.
-For Drosix' current ESCs, the dead zone ends ar $`\sigma = 0.05`$.
+It is necessary to model that ESCs have a dead zone where $`\sigma \neq 0`$ still provides $`V_{DC} = 0`$ V.
+For Drosix's current ESCs, the dead zone ends at $`\sigma = 0.05`$.
 The relation between $`\sigma`$ and $`\Omega_M`$ can be adjusted:
 
 ```math
-\Omega_M = \frac{K_M}{T_M S + 1} (C_R \sigma + \omega_b)
+\Omega_M = \frac{1}{T_M S + 1} (C_R \sigma + \omega_b) \\\\
+```
+
+Where $`C_r`$ and $`\omega_b`$ are the linear function coefficient binding the throttle to the motor speed (ignoring the mechanical mode).
+
+The associated differential equation for simulation is:
+
+```math
+\frac{\partial \Omega_M(t)}{dt} = \frac{(C_R \sigma(t) + \omega_b) - \Omega_M(t)}{T_M}
 ```
 
 ## Body model
 
-The body model is built under the assumption that the body is rigid.
-Moreover, the mass and the moment of inertia of the body is constant over the time.
-The center of gravity of drone is the same as the geometrical center of the frame.
-Finally, only the propulsion system thrust and the gravity forces are applied to the body.
+The body model relies on the following assumptions:
+- the body is rigid;
+- the mass and the moment of inertia of the body constant over the time;
+- the centre of gravity of drone is the same as the geometrical centre of the frame;
+- the only forces are the propulsion system thrust and the gravity forces are applied to the body.
 
 ![Drosix frame representation](/images/Kinematic.png)
 
@@ -60,8 +88,8 @@ Newton's second law of motion for rotation is:
 \sum{M_{\Delta i}} = J \dot{\omega}
 ```
 
-Here $`M_{\Delta i}`$ are the moment of the forces applied to the drone against each axis.
-Supposing that the moment of inertia matrix is
+$`M_{\Delta i}`$ are the moments of the forces applied to the drone against each axis.
+Supposing the moment of inertia matrix is
 ```math
 J = 
 \begin{bmatrix}
@@ -71,7 +99,7 @@ J =
 \end{bmatrix}
 ```
 
-Then, the relation which links the attitude velocity and the propellers thrust and moment are:
+Then, the relation linking the attitude velocity to the propellers thrust and moment are:
 
 ```math
 \begin{aligned}
@@ -107,8 +135,7 @@ The motor speed can be injected in the previous equations such as:
 \end{bmatrix}
 ```
 
-Moreover, the thrust along the $`z`$ axis of the frame is:
-\
+From the [Propulsion][mathematical-model/#propulsion] section, the thrust along the $`z`$ axis of the frame is (with all the fixed parameters hidden behind $`C_T`$):
 
 ```math
 f =
@@ -123,7 +150,7 @@ f =
 \end{bmatrix}
 ```
 
-The system can be expressed under the space state representation:
+Expriming the system under the space state representation:
 
 ```math
 \begin{aligned}

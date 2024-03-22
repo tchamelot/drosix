@@ -12,6 +12,10 @@ def plot_result():
     plt.plot(df[0], df[2], "o--", label="motor 1")
     plt.plot(df[0], df[3], "o--", label="motor 2")
     plt.plot(df[0], df[4], "o--", label="motor 3")
+    plt.ticklabel_format(
+        style="plain",
+        useOffset=False,
+    )
     plt.legend()
 
     plt.figure("Drone angular velocity (rad/s)")

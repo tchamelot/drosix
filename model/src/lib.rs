@@ -179,14 +179,11 @@ impl Model {
             set_point,
         };
         if save {
-            println!("{:#?}", drone.pid_position);
+            println!("{:#?}", drone.pid_velocity);
         }
 
-        let state = State::<f64>::new(
-            0f64,
-            c!(428.39, 428.39, 428.39, 428.39, 0, 0, 0, 0, 0, 0),
-            c!(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-        );
+        let w = self.config.w;
+        let state = State::<f64>::new(0f64, c!(w, w, w, w, 0, 0, 0, 0, 0, 0), c!(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
 
         let mut ode_solver = ExplicitODE::new(compute_accel);
 
@@ -211,7 +208,7 @@ impl Model {
             .col(5)
             .into_iter()
             .map(|y| set_point - y)
-            .zip(result.col(0).into_iter())
+            .zip(result.col(0))
             .map(|(e, t)| e.abs() * t)
             .sum::<f64>()
             // Part of the itae missing due to early exit
@@ -241,8 +238,8 @@ pub fn compute_accel(state: &mut State<f64>, env: &Drone) {
     // The throttle is between 0 and 1 so dividing by 200_000 does the trick
     let throttles = [
         env.config.throttle + (cmd_wx + 0.0 + 0.0) / 200_000.0,
-        env.config.throttle - (cmd_wx + 0.0 - 0.0) / 200_000.0,
-        env.config.throttle - (cmd_wx - 0.0 + 0.0) / 200_000.0,
+        env.config.throttle + (-cmd_wx + 0.0 - 0.0) / 200_000.0,
+        env.config.throttle + (-cmd_wx - 0.0 + 0.0) / 200_000.0,
         env.config.throttle + (cmd_wx - 0.0 - 0.0) / 200_000.0,
     ];
 
@@ -254,12 +251,13 @@ pub fn compute_accel(state: &mut State<f64>, env: &Drone) {
     let w1 = state.value[1].powi(2);
     let w2 = state.value[2].powi(2);
     let w3 = state.value[3].powi(2);
+    let d = (2.0.sqrt() / 2.0) * env.config.size;
     // Wx
-    state.deriv[4] = env.config.size * env.config.ct * (w0 - w1 - w2 + w3) / env.config.jx;
+    state.deriv[4] = d * env.config.ct * (w0.pow(2.0) - w1.pow(2.0) - w2.pow(2.0) + w3.pow(2.0)) / env.config.jx;
     // Wy
-    state.deriv[5] = env.config.size * env.config.ct * (w0 + w1 - w2 - w3) / env.config.jy;
+    state.deriv[5] = d * env.config.ct * (w0.pow(2.0) + w1.pow(2.0) - w2.pow(2.0) - w3.pow(2.0)) / env.config.jy;
     // Wz
-    state.deriv[6] = env.config.cm * (w0 - w1 + w2 - w3) / env.config.jz;
+    state.deriv[6] = env.config.cm * (w0.pow(2.0) - w1.pow(2.0) + w2.pow(2.0) - w3.pow(2.0)) / env.config.jz;
 
     // Px
     state.deriv[7] = state.value[4];
@@ -269,137 +267,8 @@ pub fn compute_accel(state: &mut State<f64>, env: &Drone) {
     state.deriv[9] = state.value[6];
 }
 
-#[pyfunction(save = "false")]
-fn pid_velocity_x(pid: PyReadonlyArray1<f64>, save: bool) -> f64 {
-    let kp = *pid.get(0).unwrap_or(&0.0);
-    let ti = *pid.get(1).unwrap_or(&0.0);
-    let td = *pid.get(2).unwrap_or(&0.0);
-    let set_point = std::f64::consts::PI / 10.0;
-
-    let config = Config::from_file("drosix_model.toml");
-
-    let drone = Drone {
-        config,
-        pid_velocity: RefCell::new(Pid::new(kp, ti, td, 5, 0.01)),
-        pid_position: None,
-        set_point,
-    };
-    if save {
-        println!("{:#?}", drone.pid_velocity);
-    }
-
-    let state = State::<f64>::new(
-        0f64,
-        c!(drone.config.w, drone.config.w, drone.config.w, drone.config.w, 0, 0, 0, 0, 0, 0),
-        c!(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-    );
-
-    let mut ode_solver = ExplicitODE::new(compute_accel);
-
-    ode_solver
-        .set_method(ExMethod::RK4)
-        .set_initial_condition(state)
-        .set_env(drone)
-        .set_stop_condition(|ode| {
-            ode.get_state().value[0] > 800.0
-                || ode.get_state().value[0] < 0.0
-                || ode.get_state().value[1] > 800.0
-                || ode.get_state().value[1] < 0.0
-        })
-        .set_step_size(0.001)
-        .set_times(1000);
-    let result = ode_solver.integrate();
-    if save {
-        result.write("result.csv").expect("Could not open result.csv");
-    }
-
-    let err: f64 = result
-        .col(5)
-        .into_iter()
-        .map(|y| set_point - y)
-        .zip(result.col(0).into_iter())
-        .map(|(e, t)| e.abs() * t)
-        .sum::<f64>()
-        // Part of the itae missing due to early exit
-        + (result.row..1001)
-            .map(|x| set_point * f64::from(x as i16) * 0.01)
-            .sum::<f64>();
-    err
-}
-
-#[pyfunction(save = "false")]
-// fn pid_itae(kp: f64, ti: f64, td: f64, save: bool) -> f64 {
-fn pid_position_x(pid: PyReadonlyArray1<f64>, save: bool) -> f64 {
-    let kp = *pid.get(0).unwrap_or(&0.0);
-    let ti = *pid.get(1).unwrap_or(&0.0);
-    let td = *pid.get(2).unwrap_or(&0.0);
-
-    let content = std::fs::read_to_string("drosix_config.toml").unwrap();
-    let config: Value = toml::from_str(&content).unwrap();
-    let config = Config {
-        size: config["frame"]["size"].as_float().unwrap(),
-        jx: config["frame"]["jx"].as_float().unwrap(),
-        jy: config["frame"]["jy"].as_float().unwrap(),
-        jz: config["frame"]["jz"].as_float().unwrap(),
-        tm: config["motor"]["tm"].as_float().unwrap(),
-        cr: config["motor"]["cr"].as_float().unwrap(),
-        wb: config["motor"]["wb"].as_float().unwrap(),
-        ct: config["propeller"]["ct"].as_float().unwrap(),
-        cm: config["propeller"]["cm"].as_float().unwrap(),
-        throttle: config["hover"]["throttle"].as_float().unwrap(),
-        w: config["hover"]["w"].as_float().unwrap(),
-    };
-
-    let drone = Drone {
-        config,
-        pid_velocity: RefCell::new(Pid::new(170.0, 85.0, 2105.0, 5, 0.01)),
-        pid_position: Some(RefCell::new(Pid::new(kp, ti, td, 5, 0.01))),
-        set_point: 0.26,
-    };
-    if save {
-        println!("{:#?}", drone.pid_position);
-    }
-
-    let state =
-        State::<f64>::new(0f64, c!(428.39, 428.39, 428.39, 428.39, 0, 0, 0, 0, 0, 0), c!(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
-
-    let mut ode_solver = ExplicitODE::new(compute_accel);
-
-    ode_solver
-        .set_method(ExMethod::RK4)
-        .set_initial_condition(state)
-        .set_env(drone)
-        .set_stop_condition(|ode| {
-            ode.get_state().value[0] > 800.0
-                || ode.get_state().value[0] < 0.0
-                || ode.get_state().value[1] > 800.0
-                || ode.get_state().value[1] < 0.0
-        })
-        .set_step_size(0.001)
-        .set_times(1000);
-    let result = ode_solver.integrate();
-    if save {
-        result.write("result.csv").expect("Could not open result.csv");
-    }
-
-    let err: f64 = result
-        .col(5)
-        .into_iter()
-        .map(|y| 1.6 - y)
-        .zip(result.col(0).into_iter())
-        .map(|(e, t)| e.abs() * t)
-        .sum::<f64>()
-        // Part of the itae missing due to early exit
-        + (result.row..1001)
-            .map(|x| 1.6 * f64::from(x as i16) * 0.01)
-            .sum::<f64>();
-    err
-}
-
 #[pymodule]
 fn model(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(pid_velocity_x, m)?)?;
-    m.add_function(wrap_pyfunction!(pid_position_x, m)?)?;
     m.add_class::<Pid>()?;
     m.add_class::<Model>()?;
     Ok(())
