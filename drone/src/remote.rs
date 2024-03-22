@@ -41,6 +41,71 @@ pub fn remote(remote_tx: Sender<Command>) {
                         .send(Command::SwitchDebug(DebugConfig::PidLoop))
                         .expect("Cannot send debug command from remote to drone");
                 },
+                EventType::ButtonPressed(Button::DPadUp, _) => {
+                    remote_tx
+                        .send(Command::SwitchDebug(DebugConfig::None))
+                        .expect("Cannot send debug command from remote to drone");
+                },
+                EventType::ButtonChanged(Button::North, value, _) => {
+                    remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
+                    armed = false;
+                    let value = if value < 0.5 {
+                        199_999
+                    } else {
+                        220_000
+                    };
+                    remote_tx
+                        .send(Command::SetMotor {
+                            motor: 0,
+                            value,
+                        })
+                        .expect("Cannot send debug command from remote to drone");
+                },
+                EventType::ButtonChanged(Button::East, value, _) => {
+                    remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
+                    armed = false;
+                    let value = if value < 0.5 {
+                        199_999
+                    } else {
+                        220_000
+                    };
+                    remote_tx
+                        .send(Command::SetMotor {
+                            motor: 1,
+                            value,
+                        })
+                        .expect("Cannot send debug command from remote to drone");
+                },
+                EventType::ButtonChanged(Button::South, value, _) => {
+                    remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
+                    armed = false;
+                    let value = if value < 0.5 {
+                        199_999
+                    } else {
+                        220_000
+                    };
+                    remote_tx
+                        .send(Command::SetMotor {
+                            motor: 2,
+                            value,
+                        })
+                        .expect("Cannot send debug command from remote to drone");
+                },
+                EventType::ButtonChanged(Button::West, value, _) => {
+                    remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
+                    armed = false;
+                    let value = if value < 0.5 {
+                        199_999
+                    } else {
+                        220_000
+                    };
+                    remote_tx
+                        .send(Command::SetMotor {
+                            motor: 3,
+                            value,
+                        })
+                        .expect("Cannot send debug command from remote to drone");
+                },
                 _ => {
                     // println!("Not handled event: {:?}", event);
                 },

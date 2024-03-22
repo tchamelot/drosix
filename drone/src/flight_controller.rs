@@ -122,6 +122,10 @@ impl<'a> FlightController {
             Ok(Command::SwitchDebug(dbg)) => controller.switch_debug(dbg),
             Ok(Command::Armed(true)) => controller.set_armed(),
             Ok(Command::Armed(false)) => controller.clear_armed(),
+            Ok(Command::SetMotor {
+                motor,
+                value,
+            }) => controller.set_motor_speed(motor, value),
             _ => {},
         }
     }

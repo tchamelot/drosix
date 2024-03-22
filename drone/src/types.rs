@@ -55,6 +55,10 @@ pub enum Command {
     Flight(FlightCommand),
     SwitchDebug(DebugConfig),
     Armed(bool),
+    SetMotor {
+        motor: usize,
+        value: u32,
+    },
 }
 
 pub enum Log {
