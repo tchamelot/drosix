@@ -66,9 +66,7 @@ impl Pid {
     pub fn __str__(&self) -> String {
         format!("PID: a = {:?}, b = {:?}", self.a, self.b).to_string()
     }
-}
 
-impl Pid {
     pub fn update(&mut self, input: f64, t: f64) -> f64 {
         if (t - self.prev_t) >= self.T {
             let output = input * self.a[0] + self.inputs[0] * self.a[1] + self.inputs[1] * self.a[2]
