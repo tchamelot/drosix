@@ -125,7 +125,7 @@ impl<'a> FlightController {
             Ok(Command::SetMotor {
                 motor,
                 value,
-            }) => controller.set_motor_speed(motor, value),
+            }) => controller.set_motor_speed(motor, value).expect("unreachable"),
             _ => {},
         }
     }
