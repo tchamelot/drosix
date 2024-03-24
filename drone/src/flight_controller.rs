@@ -1,7 +1,7 @@
 use crate::config::DrosixParameters;
 use crate::controller::PruController;
 use crate::polling::Poller;
-use crate::sensor::Sensors;
+use crate::sensor::{Error, Sensors};
 use crate::types::{Command, FlightCommand, Log};
 
 use mio::{Interest, Token};
@@ -67,7 +67,12 @@ impl<'a> FlightController {
             }
             for event in events.iter() {
                 match event.token() {
-                    IMU => self.fly(&mut sensors, &mut controller)?,
+                    IMU => {
+                        self.fly(&mut sensors, &mut controller).or_else(|err| match err.downcast_ref::<Error>() {
+                            Some(Error::NotAvailable | Error::NotCalibarated) => Ok(()),
+                            _ => Err(err),
+                        })?
+                    },
                     CONTROLLER => {
                         if !controller.handle_event() {
                             break 'control_loop;

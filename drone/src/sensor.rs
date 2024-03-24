@@ -1,10 +1,10 @@
 use std::fs;
-use std::io::Read;
 use std::os::unix::io::{AsRawFd, RawFd};
 
-use anyhow::{Context, Error, Result};
+use anyhow::{Context, Result};
 
 use hal::gpio_cdev::{Chip, EventRequestFlags, LineEventHandle, LineRequestFlags};
+use hal::i2cdev::linux::LinuxI2CError;
 use hal::Delay;
 use hal::I2cdev;
 
@@ -14,9 +14,29 @@ use mpu9250::{DmpRate, MpuConfig};
 
 use crate::types::{Angles, Odometry};
 
+#[derive(Debug)]
+pub enum Error {
+    NotCalibarated,
+    NotAvailable,
+    Mpu9250(mpu9250::Error<mpu9250::I2CError<LinuxI2CError>>),
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotCalibarated => write!(f, "Sensors not calibrated"),
+            Self::NotAvailable => write!(f, "Sensors data not available"),
+            Self::Mpu9250(x) => write!(f, "Internal IMU error: {:?}", x),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
 pub struct Sensors {
     imu: Mpu9250<I2cDevice<I2cdev>, Dmp>,
     imu_pin: LineEventHandle,
+    imu_calibrated: bool,
 }
 
 impl Sensors {
@@ -41,12 +61,12 @@ impl Sensors {
             .and_then(|line| line.events(LineRequestFlags::INPUT, EventRequestFlags::FALLING_EDGE, "mpu9250"))
             .context("Registering IMU interrupt")?;
 
-        let mpu9250 = Mpu9250::dmp(i2c, &mut Delay, &mut mpu_config, &dmp_firmware)
-            .map_err(|e| Error::msg(format!("Statring mpu9250 {:?}", e)))?;
+        let mpu9250 = Mpu9250::dmp(i2c, &mut Delay, &mut mpu_config, &dmp_firmware).map_err(|e| Error::Mpu9250(e))?;
 
         Ok(Self {
             imu: mpu9250,
             imu_pin: pin_event,
+            imu_calibrated: false,
         })
     }
 
@@ -71,13 +91,14 @@ impl Sensors {
                     thrust,
                 })
             },
-            Err(_) => Err(Error::msg("Reading IMU measures")),
+            Err(mpu9250::Error::DmpDataNotReady) => Err(Error::NotAvailable.into()),
+            Err(x) => Err(Error::Mpu9250(x).into()),
         }
     }
 
     /// Reset the IMU internal state keeping the same config
     pub fn clean_imu(&mut self) -> Result<()> {
-        self.imu.reset_fifo(&mut Delay).map_err(|e| Error::msg(format!("Reseting IMU communication {:?}", e)))
+        self.imu.reset_fifo(&mut Delay).map_err(|e| Error::Mpu9250(e).into())
     }
 }
 
