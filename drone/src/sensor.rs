@@ -74,22 +74,31 @@ impl Sensors {
         self.imu_pin.as_raw_fd()
     }
 
+    /// Handle an IMU event
+    /// - Return Error::NotAvailable if called to early
+    /// - Return Error::NotCalibarated during IMU internal calibration process
     pub fn handle_imu_event(&mut self) -> Result<Odometry> {
         self.imu_pin.get_event().context("Accessing IMU interrupt pin")?;
         match self.imu.dmp_all::<[f32; 3], [f64; 4]>() {
             Ok(measure) => {
-                let attitude = quat_to_angles(&measure.quaternion.unwrap());
                 let gyro = measure.gyro.unwrap();
-                let thrust = compute_thrust(&measure.accel.unwrap(), &attitude);
-                Ok(Odometry {
-                    attitude,
-                    rate: Angles {
-                        roll: gyro[2],
-                        pitch: gyro[1],
-                        yaw: gyro[0],
-                    },
-                    thrust,
-                })
+                let accel = measure.accel.unwrap();
+                if self.imu_calibrated {
+                    let attitude = quat_to_angles(&measure.quaternion.unwrap());
+                    let thrust = compute_thrust(&accel, &attitude);
+                    Ok(Odometry {
+                        attitude,
+                        rate: Angles {
+                            roll: gyro[2],
+                            pitch: gyro[1],
+                            yaw: gyro[0],
+                        },
+                        thrust,
+                    })
+                } else {
+                    self.imu_calibrated = gyro.iter().all(|x| *x < 0.005);
+                    Err(Error::NotCalibarated.into())
+                }
             },
             Err(mpu9250::Error::DmpDataNotReady) => Err(Error::NotAvailable.into()),
             Err(x) => Err(Error::Mpu9250(x).into()),
