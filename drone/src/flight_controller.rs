@@ -52,7 +52,7 @@ impl<'a> FlightController {
         poller.register(&sensors.imu_event(), IMU, Interest::READABLE)?;
 
         controller.set_rate_pid(config.rate_pid);
-        controller.set_rate_pid(config.attitude_pid);
+        controller.set_attitude_pid(config.attitude_pid);
         controller.switch_debug(config.debug_config);
 
         PruController::start(&mut pru.pru0, &mut pru.pru1)?;
