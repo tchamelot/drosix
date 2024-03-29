@@ -22,10 +22,11 @@ pub struct AnglePid {
 #[repr(C)]
 #[derive(Serialize, Deserialize, Copy, Clone, Debug)]
 pub enum DebugConfig {
-    None = 0,
-    PidLoop = 0b1,
-    PidNewData = 0b10,
-    PwmStep = 0b100,
+    None,
+    PidLoop,
+    PidNewData,
+    PwmStep,
+    PwmChange,
 }
 
 #[repr(C)]

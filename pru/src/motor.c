@@ -101,4 +101,7 @@ void read_motor_cmd(uint32_t cmd[4]) {
             cmd[i] = 399999;
         }
     }
+    if(controller.debug_config == DEBUG_CONFIG_PWM_CHANGE) {
+        send_event(EVT_DEBUG);
+    }
 }

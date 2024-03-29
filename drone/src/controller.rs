@@ -20,8 +20,6 @@ pub struct SharedMem {
     pub thrust_pid: VolatileCell<Pid>,
     /// PID parameters for rate controller
     pub rate_pid: VolatileCell<AnglePid>,
-    /// For debug purpose: indicates which event should trigger a debug event
-    pub debug_config: VolatileCell<DebugConfig>,
     /// PID controller inp
     pub pid_input: VolatileCell<Odometry>,
     /// PID controller outputs: Motor[1-4] duty cycles
@@ -34,6 +32,8 @@ pub struct SharedMem {
     pub cycle: VolatileCell<u32>,
     /// For debug purpose: number of stall cycles recorded by a PRU
     pub stall: VolatileCell<u32>,
+    /// For debug purpose: indicates which event should trigger a debug event
+    pub debug_config: VolatileCell<DebugConfig>,
 }
 
 impl Default for SharedMem {

@@ -44,7 +44,7 @@ build/motor.elf: $(MOTOR_OBJ)
 %.o: %.asm
 	@$(CC) $(ASFLAGS) -c $<
 
-build/%.o: src/%.c src/drosix.h src/util.h
+build/%.o: src/%.c src/drosix.h src/util.h src/shared-memory.h
 	@echo "(CC) $@"
 	@$(CC) $(CFLAGS) -c $<
 

@@ -6,6 +6,8 @@ const EXPORT_LIST: &[&str] = &["Pid", "AnglePid", "Odometry", "Angles", "DebugCo
 fn main() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=src/types.rs");
+    println!("cargo:rerun-if-changed=src/controller.rs");
 
     let config = cbindgen::Config::from_root_or_default(&crate_dir);
 
