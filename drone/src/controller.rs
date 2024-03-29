@@ -182,11 +182,13 @@ impl<'a> PruController<'a> {
 
     /// Arms the motor making the PID controller start.
     pub fn set_armed(&mut self) {
+        eprintln!("Arm");
         self.intc.send_sysevt(Sysevt::S22);
     }
 
     /// Disarms the motor making the PID controller stop.
     pub fn clear_armed(&mut self) {
+        eprintln!("Disarm");
         self.intc.send_sysevt(Sysevt::S23);
     }
 

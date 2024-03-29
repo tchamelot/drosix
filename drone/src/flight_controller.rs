@@ -69,6 +69,7 @@ impl<'a> FlightController {
                 match event.token() {
                     IMU => {
                         self.fly(&mut sensors, &mut controller).or_else(|err| match err.downcast_ref::<Error>() {
+                            // TODO Handle error as critical if the drone is armed or flying
                             Some(Error::NotAvailable | Error::NotCalibarated) => Ok(()),
                             _ => Err(err),
                         })?
