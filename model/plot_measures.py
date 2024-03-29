@@ -9,7 +9,7 @@ def read_file(f):
         unpacked = []
         try:
             for i in range(0, len(data), 84):
-                line = struct.unpack("<QQfffffffIIIIffffff", data[i : i + 84])
+                line = struct.unpack("<QQ fff fff f IIII fff fff", data[i : i + 84])
                 unpacked.append(line)
         except struct.error:
             pass
@@ -27,9 +27,10 @@ if __name__ == "__main__":
         "roll": data[2],
         "pitch": data[3],
         "yaw": data[4],
-        "vroll": data[6],
-        "vpitch": data[7],
-        "vyaw": data[8],
+        "vroll": data[5],
+        "vpitch": data[6],
+        "vyaw": data[7],
+        "thrust": data[8],
         "motor1": data[9],
         "motor2": data[10],
         "motor3": data[11],
@@ -42,7 +43,7 @@ if __name__ == "__main__":
         "vz": data[18],
     }
 
-    plt.figure("measure")
+    plt.figure("Odometry")
     plt.plot(data["time"], data["roll"], "ro--", label="roll")
     plt.plot(data["time"], data["pitch"], "go--", label="pitch")
     plt.plot(data["time"], data["yaw"], "bo--", label="yaw")
@@ -50,20 +51,20 @@ if __name__ == "__main__":
     plt.plot(data["time"], data["vpitch"], "g+--", label="vpitch")
     plt.plot(data["time"], data["vyaw"], "b+--", label="vyaw")
     plt.legend()
-    # plt.figure("motor")
-    # plt.plot(data["time"], data["motor1"], "o--", label="1")
-    # plt.plot(data["time"], data["motor2"], "o--", label="2")
-    # plt.plot(data["time"], data["motor3"], "o--", label="3")
-    # plt.plot(data["time"], data["motor4"], "o--", label="4")
-    # plt.legend()
-    # plt.figure("vpid")
-    # plt.plot(data["time"], data["vx"], "o--", label="x")
-    # plt.plot(data["time"], data["vy"], "o--", label="y")
-    # plt.plot(data["time"], data["vz"], "o--", label="z")
-    # plt.legend()
-    # plt.figure("ppid")
-    # plt.plot(data["time"], data["px"], "o--", label="x")
-    # plt.plot(data["time"], data["py"], "o--", label="y")
-    # plt.plot(data["time"], data["pz"], "o--", label="z")
-    # plt.legend()
+    plt.figure("motor")
+    plt.plot(data["time"], data["motor1"], "o--", label="1")
+    plt.plot(data["time"], data["motor2"], "o--", label="2")
+    plt.plot(data["time"], data["motor3"], "o--", label="3")
+    plt.plot(data["time"], data["motor4"], "o--", label="4")
+    plt.legend()
+    plt.figure("vpid")
+    plt.plot(data["time"], data["vx"], "o--", label="x")
+    plt.plot(data["time"], data["vy"], "o--", label="y")
+    plt.plot(data["time"], data["vz"], "o--", label="z")
+    plt.legend()
+    plt.figure("ppid")
+    plt.plot(data["time"], data["px"], "o--", label="x")
+    plt.plot(data["time"], data["py"], "o--", label="y")
+    plt.plot(data["time"], data["pz"], "o--", label="z")
+    plt.legend()
     plt.show()
