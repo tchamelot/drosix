@@ -1,19 +1,21 @@
 use gilrs::{Button, Event, EventType, Gilrs};
 use std::sync::mpsc::Sender;
-use std::time::Duration;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use crate::types::{Angles, Command, DebugConfig, FlightCommand};
 
 pub fn remote(remote_tx: Sender<Command>) {
     let mut gilrs = Gilrs::new().unwrap();
     let mut armed = false;
+    let mut watchdog = Instant::now();
 
     'main: loop {
         if let Some(Event {
             id,
             event,
             time,
-        }) = gilrs.next_event_blocking(Some(Duration::from_secs(5)))
+        }) = gilrs.next_event()
         {
             match event {
                 EventType::Disconnected => {
@@ -25,9 +27,10 @@ pub fn remote(remote_tx: Sender<Command>) {
                 },
                 EventType::ButtonChanged(Button::LeftTrigger2, value, _) => {
                     // First command to take off so the motors shall start
-                    if !armed {
-                        remote_tx.send(Command::Armed(true)).expect("Cannot send armed from remote to drone");
+                    if !armed && value != 0.0 {
+                        watchdog = Instant::now();
                         armed = true;
+                        remote_tx.send(Command::Armed(true)).expect("Cannot send armed from remote to drone");
                     }
                     remote_tx
                         .send(Command::Flight(FlightCommand {
@@ -47,8 +50,6 @@ pub fn remote(remote_tx: Sender<Command>) {
                         .expect("Cannot send debug command from remote to drone");
                 },
                 EventType::ButtonChanged(Button::North, value, _) => {
-                    remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
-                    armed = false;
                     let value = if value < 0.5 {
                         199_999
                     } else {
@@ -62,8 +63,6 @@ pub fn remote(remote_tx: Sender<Command>) {
                         .expect("Cannot send debug command from remote to drone");
                 },
                 EventType::ButtonChanged(Button::East, value, _) => {
-                    remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
-                    armed = false;
                     let value = if value < 0.5 {
                         199_999
                     } else {
@@ -77,8 +76,6 @@ pub fn remote(remote_tx: Sender<Command>) {
                         .expect("Cannot send debug command from remote to drone");
                 },
                 EventType::ButtonChanged(Button::South, value, _) => {
-                    remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
-                    armed = false;
                     let value = if value < 0.5 {
                         199_999
                     } else {
@@ -92,8 +89,6 @@ pub fn remote(remote_tx: Sender<Command>) {
                         .expect("Cannot send debug command from remote to drone");
                 },
                 EventType::ButtonChanged(Button::West, value, _) => {
-                    remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
-                    armed = false;
                     let value = if value < 0.5 {
                         199_999
                     } else {
@@ -112,10 +107,11 @@ pub fn remote(remote_tx: Sender<Command>) {
             }
         } else {
             // No event during the previous second so the motors shall stop
-            if armed {
+            if armed && watchdog.elapsed().as_secs() > 5 {
                 remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
                 armed = false;
             }
         }
+        std::thread::sleep(Duration::from_millis(10));
     }
 }
