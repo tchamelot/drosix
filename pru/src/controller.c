@@ -37,8 +37,6 @@ void main(void) {
 
     /* wait motor to be ready */
     while(check_event0() != EVT_MOTOR_STATUS) {}
-    /* send_event(MST_15); */
-    send_event(EVT_CONTROLLER_STATUS);
 
     /* store pid coef in local memory */
     pid_init(&pids[0], controller.attitude_pid.roll.numerator, controller.attitude_pid.roll.denominator);
@@ -49,7 +47,20 @@ void main(void) {
     pid_init(&pids[5], controller.rate_pid.pitch.numerator, controller.rate_pid.pitch.denominator);
     pid_init(&pids[6], controller.rate_pid.yaw.numerator, controller.rate_pid.yaw.denominator);
 
+    
+    odometry.attitude.roll = 0.0;
+    odometry.attitude.pitch = 0.0;
+    odometry.attitude.yaw = 0.0;
+    odometry.rate.roll = 0.0;
+    odometry.rate.pitch = 0.0;
+    odometry.rate.yaw = 0.0;
+    odometry.thrust = 0.0;
+
     configure_timer();
+
+    /* send_event(MST_15); */
+    send_event(EVT_CONTROLLER_STATUS);
+
 
 #pragma CHECK_MISRA("-11.3")
     PRU0_CTRL.CTRL_bit.CTR_EN = 1U;
@@ -86,9 +97,9 @@ void main(void) {
             send_event(EVT_PID_OUTPUT);
 
             if(controller.debug_config == DEBUG_CONFIG_PID_LOOP) {
-              memcpy((void*)&controller.p_pid, (void*)&rate_set_point, sizeof(angles_t));
-              memcpy((void*)&controller.v_pid, (void*)&rate_command, sizeof(angles_t));
-              send_event(EVT_DEBUG);
+                memcpy((void*)&controller.p_pid, (void*)&rate_set_point, sizeof(angles_t));
+                memcpy((void*)&controller.v_pid, (void*)&rate_command, sizeof(angles_t));
+                send_event(EVT_DEBUG);
             }
             break;
         /* STOP */

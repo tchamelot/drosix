@@ -245,6 +245,22 @@ mod tests {
         const PRU_DEBUG: Token = Token(1);
 
         let mut controller = PruController::new(&pru.intc, &mut pru.dram2);
+        let pids = AnglePid {
+            roll: Pid {
+                numerator: [10.0, 0.0, 0.0],
+                denominator: [0.0, 0.0],
+            },
+            pitch: Pid {
+                numerator: [10.0, 0.0, 0.0],
+                denominator: [0.0, 0.0],
+            },
+            yaw: Pid {
+                numerator: [10.0, 0.0, 0.0],
+                denominator: [0.0, 0.0],
+            },
+        };
+        controller.set_attitude_pid(pids);
+        controller.set_rate_pid(pids);
 
         poller.register(&controller.status, PRU_STATUS, Interest::READABLE).unwrap();
         poller.register(&controller.debug, PRU_DEBUG, Interest::READABLE).unwrap();
@@ -269,7 +285,7 @@ mod tests {
         assert!(controller.handle_event());
 
         // Check start unarmed
-        controller.switch_debug(DebugConfig::PidLoop);
+        controller.switch_debug(DebugConfig::PwmChange);
         let events = poller.poll(Some(Duration::from_secs(1))).unwrap();
         if !events.is_empty() {
             panic!("PRUs sent too many event_counter while unarmed");
@@ -288,22 +304,21 @@ mod tests {
             }
         }
         controller.handle_debug();
-        controller.switch_debug(DebugConfig::PidLoop);
 
         // Check sending data
-        controller.switch_debug(DebugConfig::PidNewData);
+        controller.switch_debug(DebugConfig::PidLoop);
         let input = Odometry {
             attitude: Angles {
-                roll: 0.0,
-                pitch: 1.1,
-                yaw: 2.2,
+                roll: 1.1,
+                pitch: 2.2,
+                yaw: 3.2,
             },
             rate: Angles {
-                roll: 3.3,
-                pitch: 4.4,
-                yaw: 5.5,
+                roll: 4.4,
+                pitch: 5.5,
+                yaw: 6.6,
             },
-            thrust: 6.6,
+            thrust: 7.7,
         };
         for _ in 0..10 {
             controller.set_pid_inputs(input);
@@ -320,7 +335,9 @@ mod tests {
             let shmem = controller.handle_debug();
             assert_eq!(shmem.pid_input.get(), input);
         }
-        controller.switch_debug(DebugConfig::PidNewData);
+        // TODO assert
+        println!("{:#x?}", controller.shared_mem.p_pid.get());
+        println!("{:#x?}", controller.shared_mem.v_pid.get());
 
         // Check unarming
         controller.switch_debug(DebugConfig::PidLoop);
