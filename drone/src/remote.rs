@@ -5,6 +5,9 @@ use std::time::{Duration, Instant};
 
 use crate::types::{Angles, Command, DebugConfig, FlightCommand};
 
+const MOTOR_OFF: u32 = 199_999;
+const MOTOR_ON: u32 = 399_999;
+
 pub fn remote(remote_tx: Sender<Command>) {
     let mut gilrs = Gilrs::new().unwrap();
     let mut armed = false;
@@ -51,9 +54,9 @@ pub fn remote(remote_tx: Sender<Command>) {
                 },
                 EventType::ButtonChanged(Button::North, value, _) => {
                     let value = if value < 0.5 {
-                        199_999
+                        MOTOR_OFF
                     } else {
-                        220_000
+                        MOTOR_ON
                     };
                     remote_tx
                         .send(Command::SetMotor {
@@ -64,9 +67,9 @@ pub fn remote(remote_tx: Sender<Command>) {
                 },
                 EventType::ButtonChanged(Button::East, value, _) => {
                     let value = if value < 0.5 {
-                        199_999
+                        MOTOR_OFF
                     } else {
-                        220_000
+                        MOTOR_ON
                     };
                     remote_tx
                         .send(Command::SetMotor {
@@ -77,9 +80,9 @@ pub fn remote(remote_tx: Sender<Command>) {
                 },
                 EventType::ButtonChanged(Button::South, value, _) => {
                     let value = if value < 0.5 {
-                        199_999
+                        MOTOR_OFF
                     } else {
-                        220_000
+                        MOTOR_ON
                     };
                     remote_tx
                         .send(Command::SetMotor {
@@ -90,9 +93,9 @@ pub fn remote(remote_tx: Sender<Command>) {
                 },
                 EventType::ButtonChanged(Button::West, value, _) => {
                     let value = if value < 0.5 {
-                        199_999
+                        MOTOR_OFF
                     } else {
-                        220_000
+                        MOTOR_ON
                     };
                     remote_tx
                         .send(Command::SetMotor {

@@ -165,8 +165,8 @@ impl<'a> PruController<'a> {
         if motor > 3 {
             bail!("Cannot set speed for motor {}", motor);
         }
-        if speed < 199_999 || speed > 299_999 {
-            bail!("Cannot set motor {} speed to {} range is [199999;299999]", motor, speed);
+        if speed < 199_999 || speed > 399_999 {
+            bail!("Cannot set motor {} speed to {} range is [199999;399999]", motor, speed);
         }
         self.shared_mem.pid_output[motor].set(speed);
         self.intc.send_sysevt(Sysevt::S21);
