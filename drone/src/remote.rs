@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use crate::types::{Angles, Command, DebugConfig, FlightCommand};
 
 const MOTOR_OFF: u32 = 199_999;
-const MOTOR_ON: u32 = 399_999;
+const MOTOR_ON: u32 = 215_000;
 
 pub fn remote(remote_tx: Sender<Command>) {
     let mut gilrs = Gilrs::new().unwrap();
@@ -52,7 +52,18 @@ pub fn remote(remote_tx: Sender<Command>) {
                         .send(Command::SwitchDebug(DebugConfig::None))
                         .expect("Cannot send debug command from remote to drone");
                 },
-                EventType::ButtonChanged(Button::North, value, _) => {
+                EventType::ButtonChanged(
+                    button @ Button::North | button @ Button::South | button @ Button::East | button @ Button::West,
+                    value,
+                    _,
+                ) => {
+                    let motor = match button {
+                        Button::North => 0,
+                        Button::East => 1,
+                        Button::South => 2,
+                        Button::West => 3,
+                        _ => unreachable!(),
+                    };
                     let value = if value < 0.5 {
                         MOTOR_OFF
                     } else {
@@ -60,46 +71,7 @@ pub fn remote(remote_tx: Sender<Command>) {
                     };
                     remote_tx
                         .send(Command::SetMotor {
-                            motor: 0,
-                            value,
-                        })
-                        .expect("Cannot send debug command from remote to drone");
-                },
-                EventType::ButtonChanged(Button::East, value, _) => {
-                    let value = if value < 0.5 {
-                        MOTOR_OFF
-                    } else {
-                        MOTOR_ON
-                    };
-                    remote_tx
-                        .send(Command::SetMotor {
-                            motor: 1,
-                            value,
-                        })
-                        .expect("Cannot send debug command from remote to drone");
-                },
-                EventType::ButtonChanged(Button::South, value, _) => {
-                    let value = if value < 0.5 {
-                        MOTOR_OFF
-                    } else {
-                        MOTOR_ON
-                    };
-                    remote_tx
-                        .send(Command::SetMotor {
-                            motor: 2,
-                            value,
-                        })
-                        .expect("Cannot send debug command from remote to drone");
-                },
-                EventType::ButtonChanged(Button::West, value, _) => {
-                    let value = if value < 0.5 {
-                        MOTOR_OFF
-                    } else {
-                        MOTOR_ON
-                    };
-                    remote_tx
-                        .send(Command::SetMotor {
-                            motor: 3,
+                            motor,
                             value,
                         })
                         .expect("Cannot send debug command from remote to drone");
