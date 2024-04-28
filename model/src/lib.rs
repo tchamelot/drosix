@@ -219,11 +219,11 @@ pub fn compute_accel(state: &mut State<f64>, env: &Drone) {
     let w3 = state.value[3].powi(2);
     let d = (2.0.sqrt() / 2.0) * env.config.size;
     // Wx
-    state.deriv[4] = d * env.config.ct * (w0.pow(2.0) - w1.pow(2.0) - w2.pow(2.0) + w3.pow(2.0)) / env.config.jx;
+    state.deriv[4] = d * env.config.ct * (w0 - w1 - w2 + w3) / env.config.jx;
     // Wy
-    state.deriv[5] = d * env.config.ct * (w0.pow(2.0) + w1.pow(2.0) - w2.pow(2.0) - w3.pow(2.0)) / env.config.jy;
+    state.deriv[5] = d * env.config.ct * (w0 + w1 - w2 - w3) / env.config.jy;
     // Wz
-    state.deriv[6] = env.config.cm * (w0.pow(2.0) - w1.pow(2.0) + w2.pow(2.0) - w3.pow(2.0)) / env.config.jz;
+    state.deriv[6] = env.config.cm * (w0 - w1 + w2 - w3) / env.config.jz;
 
     // Px
     state.deriv[7] = state.value[4];
