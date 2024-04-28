@@ -1,13 +1,13 @@
+#![feature(iter_repeat_n)]
 use numpy::PyReadonlyArray1;
 use peroxide::c;
 use peroxide::fuga::*;
 use pyo3::exceptions::{PyKeyError, PyRuntimeError};
 use pyo3::prelude::*;
-use std::cell::RefCell;
 use toml::Value;
 
 #[pyclass]
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct Pid {
     /// Numerator coefficients
     a: [f64; 3],
@@ -19,8 +19,6 @@ pub struct Pid {
     outputs: [f64; 2],
     /// Evaluation period
     T: f64,
-    /// Previous evaluation time
-    prev_t: f64,
 }
 
 #[pymethods]
@@ -65,17 +63,14 @@ impl Pid {
         format!("PID: a = {:?}, b = {:?}", self.a, self.b).to_string()
     }
 
-    pub fn update(&mut self, input: f64, t: f64) -> f64 {
-        if (t - self.prev_t) >= self.T {
-            let output = input * self.a[0] + self.inputs[0] * self.a[1] + self.inputs[1] * self.a[2]
-                - self.outputs[0] * self.b[0]
-                - self.outputs[1] * self.b[1];
-            self.inputs[1] = self.inputs[0];
-            self.inputs[0] = input;
-            self.outputs[1] = self.outputs[0];
-            self.outputs[0] = output;
-            self.prev_t = t;
-        }
+    pub fn update(&mut self, input: f64) -> f64 {
+        let output = input * self.a[0] + self.inputs[0] * self.a[1] + self.inputs[1] * self.a[2]
+            - self.outputs[0] * self.b[0]
+            - self.outputs[1] * self.b[1];
+        self.inputs[1] = self.inputs[0];
+        self.inputs[0] = input;
+        self.outputs[1] = self.outputs[0];
+        self.outputs[0] = output;
         self.outputs[0]
     }
 }
@@ -95,12 +90,11 @@ struct Config {
     w: f64,
 }
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub struct Drone {
     config: Config,
-    pid_velocity: RefCell<Pid>,
-    pid_position: Option<RefCell<Pid>>,
     set_point: f64,
+    throttles: [f64; 4],
 }
 
 impl Environment for Drone {}
@@ -108,12 +102,14 @@ impl Environment for Drone {}
 #[pyclass]
 struct Model {
     config: Config,
+    set_point: f64,
+    thrust: Option<Vec<f64>>,
 }
 
 #[pymethods]
 impl Model {
     #[new]
-    fn new(path: String) -> PyResult<Self> {
+    fn new(path: String, set_point: f64, thrust: Option<PyReadonlyArray1<f64>>) -> PyResult<Self> {
         let content = std::fs::read_to_string(path)?;
         let config: Value = toml::from_str(&content).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         let config = Config {
@@ -127,10 +123,15 @@ impl Model {
             ct: config["propeller"]["ct"].as_float().ok_or(PyKeyError::new_err("propeller/ct"))?,
             cm: config["propeller"]["cm"].as_float().ok_or(PyKeyError::new_err("propeller/cm"))?,
             throttle: config["hover"]["throttle"].as_float().ok_or(PyKeyError::new_err("hover/throttle"))?,
-            w: config["hover"]["w"].as_float().ok_or(PyKeyError::new_err("hober/w"))?,
+            w: config["hover"]["w"].as_float().ok_or(PyKeyError::new_err("hover/w"))?,
         };
+
+        let thrust = thrust.map(|x| x.as_slice().unwrap().to_vec());
+
         Ok(Self {
             config,
+            set_point,
+            thrust,
         })
     }
 
@@ -139,16 +140,28 @@ impl Model {
         let kp = *pid.get(0).unwrap_or(&0.0);
         let ti = *pid.get(1).unwrap_or(&0.0);
         let td = *pid.get(2).unwrap_or(&0.0);
-        let set_point = std::f64::consts::PI / 10.0;
+        let kpp = *pid.get(3).unwrap_or(&1.0);
 
-        let drone = Drone {
+        let set_point = self.set_point;
+
+        let mut pid_velocity = Pid::new(kp, ti, td, 5, 0.01);
+        let mut pid_position = Pid::new(kpp, 0.0, 0.0, 5, 0.01);
+
+        let mut drone = Drone {
             config: self.config,
-            pid_velocity: RefCell::new(Pid::new(kp, ti, td, 5, 0.01)),
-            pid_position: None,
             set_point,
+            throttles: [self.config.throttle; 4],
         };
 
-        let w = self.config.w;
+        let w = if let Some(thrust) = self.thrust.as_ref() {
+            if thrust[0] == 0.0 {
+                0.0
+            } else {
+                drone.config.cr * thrust[0] + drone.config.wb
+            }
+        } else {
+            drone.config.w
+        };
         let state = State::<f64>::new(0f64, c!(w, w, w, w, 0, 0, 0, 0, 0, 0), c!(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
 
         let mut ode_solver = ExplicitODE::new(compute_accel);
@@ -158,24 +171,65 @@ impl Model {
             .set_initial_condition(state)
             .set_env(drone)
             .set_step_size(0.001)
-            .set_times(1000);
-        let result = ode_solver.integrate();
-        if save {
-            result.write("result.csv").expect("Could not open result.csv");
+            .set_times(10);
+
+        let default_thrust = if self.thrust.is_some() {
+            std::iter::repeat(&drone.config.throttle).take(0)
+        } else {
+            std::iter::repeat(&drone.config.throttle).take(100)
+        };
+
+        let mut errors = vec![(0.0, 0.0)];
+        let mut record = Vec::new();
+        for _ in self.thrust.as_ref().unwrap_or(&vec![]).iter().chain(default_thrust) {
+            let mut result = ode_solver.integrate().row(10);
+            if ode_solver.has_stopped() {
+                return f64::MAX;
+            }
+            let time = result[0];
+            let _motors: [_; 4] = result[1..=4].try_into().unwrap();
+            let [vroll, _vpitch, _vyaw] = result[5..=7].try_into().unwrap();
+            let [roll, _pitch, _yaw] = result[8..=10].try_into().unwrap();
+
+            // PID computation
+            let cmd_roll = pid_position.update(set_point - roll);
+            let cmd_vroll = if kpp != 0.0 {
+                errors.push((time, set_point - roll));
+                pid_velocity.update(cmd_roll - vroll)
+            } else {
+                errors.push((time, set_point - vroll));
+                pid_velocity.update(set_point - vroll)
+            };
+
+            // Motor allocation with PWM consideration
+            // The output of PID is truncated to simulate cast to int
+            // The output of PID is divided by 200000 to be between [0:1] instead of[0:200000]
+            drone.throttles = [
+                drone.config.throttle + (cmd_vroll.trunc() / 200_000.0),
+                drone.config.throttle + (-cmd_vroll.trunc() / 200_000.0),
+                drone.config.throttle + (-cmd_vroll.trunc() / 200_000.0),
+                drone.config.throttle + (cmd_vroll.trunc() / 200_000.0),
+            ];
+
+            for throttle in drone.throttles {
+                if !(0.0..=200_000.0).contains(&throttle) {
+                    return f64::MAX;
+                }
+            }
+
+            ode_solver.set_env(drone);
+            if save {
+                result.push(cmd_vroll);
+                result.push(cmd_roll);
+                record.push(result);
+            }
         }
 
-        let err: f64 = result
-            .col(5)
-            .into_iter()
-            .map(|y| set_point - y)
-            .zip(result.col(0))
-            .map(|(e, t)| e.abs() * t)
-            .sum::<f64>()
-            // Part of the itae missing due to early exit
-            + (result.row..1001)
-                .map(|x| set_point * f64::from(x as i16) * 0.01)
-                .sum::<f64>();
-        err
+        if save {
+            dump_csv(record);
+        }
+
+        errors.iter().map(|(t, e)| e.abs() * t).sum::<f64>()
     }
 }
 /**
@@ -185,24 +239,6 @@ impl Model {
  * 3 Motor 3 |
  */
 pub fn compute_accel(state: &mut State<f64>, env: &Drone) {
-    // PID wx
-
-    let cmd_px = env
-        .pid_position
-        .as_ref()
-        .map(|pid| pid.borrow_mut().update(env.set_point - state.value[7], state.param))
-        .unwrap_or(env.set_point);
-    let cmd_wx = env.pid_velocity.borrow_mut().update(cmd_px - state.value[4], state.param);
-
-    // The output of the PID should be between 0 and 200_000 to control the pwm
-    // The throttle is between 0 and 1 so dividing by 200_000 does the trick
-    let throttles = [
-        env.config.throttle + (cmd_wx + 0.0 + 0.0) / 200_000.0,
-        env.config.throttle + (-cmd_wx + 0.0 - 0.0) / 200_000.0,
-        env.config.throttle + (-cmd_wx - 0.0 + 0.0) / 200_000.0,
-        env.config.throttle + (cmd_wx - 0.0 - 0.0) / 200_000.0,
-    ];
-
     for i in 0..4 {
         state.deriv[i] =
             (env.config.cr * env.throttles[i].clamp(0.0, 1.0) + env.config.wb - state.value[i]) / env.config.tm;
@@ -233,4 +269,18 @@ fn model(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Pid>()?;
     m.add_class::<Model>()?;
     Ok(())
+}
+
+fn dump_csv(mut record: Vec<Vec<f64>>) {
+    use std::fs::File;
+    use std::io::Write;
+    let mut file = File::create("result.csv").unwrap();
+
+    for line in record.iter_mut() {
+        let last = line.pop().unwrap();
+        for value in line {
+            write!(&mut file, "{},", value).unwrap();
+        }
+        write!(&mut file, "{}\n", last).unwrap();
+    }
 }
