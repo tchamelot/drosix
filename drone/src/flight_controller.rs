@@ -2,7 +2,7 @@ use crate::config::DrosixParameters;
 use crate::controller::PruController;
 use crate::polling::Poller;
 use crate::sensor::{Error, Sensors};
-use crate::types::{Command, FlightCommand, Log};
+use crate::types::{Command, FlightCommand, Log, Pid};
 
 use mio::{Interest, Token};
 
@@ -53,6 +53,10 @@ impl<'a> FlightController {
 
         controller.set_rate_pid(config.rate_pid);
         controller.set_attitude_pid(config.attitude_pid);
+        controller.set_thrust_pid(Pid {
+            numerator: [1.0, 0.0, 0.0],
+            denominator: [0.0, 0.0],
+        });
         controller.switch_debug(config.debug_config);
 
         PruController::start(&mut pru.pru0, &mut pru.pru1)?;

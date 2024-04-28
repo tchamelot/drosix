@@ -115,6 +115,10 @@ impl<'a> PruController<'a> {
         self.shared_mem.rate_pid.set(config);
     }
 
+    pub fn set_thrust_pid(&mut self, config: Pid) {
+        self.shared_mem.thrust_pid.set(config);
+    }
+
     /// Starts the PRU (load and launch firmwares).
     pub fn start(pru0: &mut PruLoader, pru1: &mut PruLoader) -> Result<()> {
         // Load PRU code
