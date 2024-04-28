@@ -157,12 +157,6 @@ impl Model {
             .set_method(ExMethod::RK4)
             .set_initial_condition(state)
             .set_env(drone)
-            .set_stop_condition(|ode| {
-                ode.get_state().value[0] > 800.0
-                    || ode.get_state().value[0] < 0.0
-                    || ode.get_state().value[1] > 800.0
-                    || ode.get_state().value[1] < 0.0
-            })
             .set_step_size(0.001)
             .set_times(1000);
         let result = ode_solver.integrate();
@@ -210,7 +204,8 @@ pub fn compute_accel(state: &mut State<f64>, env: &Drone) {
     ];
 
     for i in 0..4 {
-        state.deriv[i] = (env.config.cr * throttles[i] + env.config.wb - state.value[i]) / env.config.tm;
+        state.deriv[i] =
+            (env.config.cr * env.throttles[i].clamp(0.0, 1.0) + env.config.wb - state.value[i]) / env.config.tm;
     }
 
     let w0 = state.value[0].powi(2);
