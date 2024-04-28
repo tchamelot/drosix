@@ -117,6 +117,9 @@ impl<'a> FlightController {
         //     (-measures.gyro[0]) as f32,  // v_measure_y
         //     (-measures.gyro[2]) as f32,  // v_measure_z
         // ];
+        measures.attitude.roll *= -1.0;
+        measures.attitude.pitch *= -1.0;
+        measures.attitude.yaw *= -1.0;
         if let Some(command) = self.last_cmd {
             measures.thrust += command.thrust * 99999.0;
         }
