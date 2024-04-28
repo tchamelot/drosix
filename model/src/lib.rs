@@ -2,10 +2,8 @@ use numpy::PyReadonlyArray1;
 use peroxide::c;
 use peroxide::fuga::*;
 use pyo3::exceptions::{PyKeyError, PyRuntimeError};
-use pyo3::once_cell::GILOnceCell;
 use pyo3::prelude::*;
 use std::cell::RefCell;
-use std::path::{Path, PathBuf};
 use toml::Value;
 
 #[pyclass]
@@ -82,8 +80,6 @@ impl Pid {
     }
 }
 
-static CONFIG_CACHE: GILOnceCell<(PathBuf, Config)> = GILOnceCell::new();
-
 #[derive(Default, Clone, Copy, Debug)]
 struct Config {
     size: f64,
@@ -97,33 +93,6 @@ struct Config {
     cm: f64,
     throttle: f64,
     w: f64,
-}
-
-impl Config {
-    fn from_file<P: AsRef<Path>>(path: P) -> Self {
-        if let Some((ref path, config)) = Python::with_gil(|py| CONFIG_CACHE.get(py)) {
-            *config
-        } else {
-            let cached_path: PathBuf = path.as_ref().into();
-            let content = std::fs::read_to_string(path).unwrap();
-            let config: Value = toml::from_str(&content).unwrap();
-            let config = Self {
-                size: config["frame"]["size"].as_float().unwrap() / 2.0,
-                jx: config["frame"]["jx"].as_float().unwrap(),
-                jy: config["frame"]["jy"].as_float().unwrap(),
-                jz: config["frame"]["jz"].as_float().unwrap(),
-                tm: config["motor"]["tm"].as_float().unwrap(),
-                cr: config["motor"]["cr"].as_float().unwrap(),
-                wb: config["motor"]["wb"].as_float().unwrap(),
-                ct: config["propeller"]["ct"].as_float().unwrap(),
-                cm: config["propeller"]["cm"].as_float().unwrap(),
-                throttle: config["hover"]["throttle"].as_float().unwrap(),
-                w: config["hover"]["w"].as_float().unwrap(),
-            };
-            Python::with_gil(|py| CONFIG_CACHE.set(py, (cached_path, config)).unwrap());
-            config
-        }
-    }
 }
 
 #[derive(Default)]
@@ -178,9 +147,6 @@ impl Model {
             pid_position: None,
             set_point,
         };
-        if save {
-            println!("{:#?}", drone.pid_velocity);
-        }
 
         let w = self.config.w;
         let state = State::<f64>::new(0f64, c!(w, w, w, w, 0, 0, 0, 0, 0, 0), c!(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
