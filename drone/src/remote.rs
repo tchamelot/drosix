@@ -82,7 +82,7 @@ pub fn remote(remote_tx: Sender<Command>) {
             }
         } else {
             // No event during the previous second so the motors shall stop
-            if armed && watchdog.elapsed().as_secs() > 5 {
+            if armed && watchdog.elapsed().as_secs() > 1 {
                 remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
                 armed = false;
             }
