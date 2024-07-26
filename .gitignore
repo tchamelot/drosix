@@ -24,3 +24,5 @@ book/
 # drosix
 images/
 .stamp_docker
+*.log
+*.csv
