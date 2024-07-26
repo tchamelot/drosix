@@ -42,16 +42,6 @@ pub fn remote(remote_tx: Sender<Command>) {
                         }))
                         .expect("Cannot send command from remote to drone");
                 },
-                EventType::ButtonPressed(Button::DPadLeft, _) => {
-                    remote_tx
-                        .send(Command::SwitchDebug(DebugConfig::PidLoop))
-                        .expect("Cannot send debug command from remote to drone");
-                },
-                EventType::ButtonPressed(Button::DPadUp, _) => {
-                    remote_tx
-                        .send(Command::SwitchDebug(DebugConfig::None))
-                        .expect("Cannot send debug command from remote to drone");
-                },
                 EventType::ButtonChanged(
                     button @ Button::North | button @ Button::South | button @ Button::East | button @ Button::West,
                     value,
