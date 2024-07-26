@@ -12,6 +12,7 @@ pub fn remote(remote_tx: Sender<Command>) {
     let mut gilrs = Gilrs::new().unwrap();
     let mut armed = false;
     let mut watchdog = Instant::now();
+    let mut motor_on = MOTOR_ON;
 
     'main: loop {
         if let Some(Event {
@@ -57,7 +58,7 @@ pub fn remote(remote_tx: Sender<Command>) {
                     let value = if value < 0.5 {
                         MOTOR_OFF
                     } else {
-                        MOTOR_ON
+                        motor_on
                     };
                     remote_tx
                         .send(Command::SetMotor {
@@ -65,6 +66,20 @@ pub fn remote(remote_tx: Sender<Command>) {
                             value,
                         })
                         .expect("Cannot send debug command from remote to drone");
+                },
+                EventType::ButtonPressed(Button::DPadUp, _) => {
+                    motor_on += 5000;
+                    if motor_on > 2 * MOTOR_OFF {
+                        motor_on = 2 * MOTOR_OFF;
+                    }
+                    println!("PWM: {} ({}%)", motor_on, (f64::from(motor_on) - 199_999.0) / 1999.99);
+                },
+                EventType::ButtonPressed(Button::DPadDown, _) => {
+                    motor_on -= 5000;
+                    if motor_on < MOTOR_OFF {
+                        motor_on = MOTOR_OFF;
+                    }
+                    println!("PWM: {} ({}%)", motor_on, (f64::from(motor_on) - 199_999.0) / 1999.99);
                 },
                 _ => {
                     // println!("Not handled event: {:?}", event);
