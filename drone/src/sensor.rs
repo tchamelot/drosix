@@ -90,8 +90,8 @@ impl Sensors {
                         attitude,
                         rate: Angles {
                             roll: gyro[2],
-                            pitch: gyro[1],
-                            yaw: gyro[0],
+                            pitch: gyro[0],
+                            yaw: gyro[1],
                         },
                         thrust,
                     })
