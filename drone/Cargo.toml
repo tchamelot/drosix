@@ -23,6 +23,7 @@ toml                = "0.8"
 gilrs = "0.10"
 
 anyhow              = "1.0"
+log                 = { version = "0.4", features = ["max_level_info", "release_max_level_warn"] }
 
 [build-dependencies]
 cbindgen = "0.26"

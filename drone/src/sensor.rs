@@ -98,7 +98,7 @@ impl Sensors {
                 } else {
                     self.imu_calibrated = gyro.iter().all(|x| *x < 0.005);
                     if self.imu_calibrated {
-                        println!("Calibrated");
+                        log::info!("Calibrated");
                     }
                     Err(Error::NotCalibarated.into())
                 }

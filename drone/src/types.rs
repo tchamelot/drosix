@@ -62,7 +62,7 @@ pub enum Command {
     },
 }
 
-pub enum Log {
+enum NotUsedSharedMemoryLog {
     Debug {
         pid_input: [f32; 7],
         pid_output: [f32; 4],

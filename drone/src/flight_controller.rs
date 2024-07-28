@@ -2,7 +2,7 @@ use crate::config::DrosixParameters;
 use crate::controller::PruController;
 use crate::polling::Poller;
 use crate::sensor::{Error, Sensors};
-use crate::types::{Command, FlightCommand, Log, Pid};
+use crate::types::{Command, FlightCommand, Pid};
 
 use mio::{Interest, Token};
 
@@ -24,11 +24,11 @@ const DEBUG: Token = Token(2);
 pub struct FlightController {
     last_cmd: Option<FlightCommand>,
     server_rx: Receiver<Command>,
-    server_tx: Sender<Log>,
+    server_tx: Sender<()>,
 }
 
 impl<'a> FlightController {
-    pub fn new(server_rx: Receiver<Command>, server_tx: Sender<Log>) -> Self {
+    pub fn new(server_rx: Receiver<Command>, server_tx: Sender<()>) -> Self {
         Self {
             last_cmd: None,
             server_rx,
@@ -37,6 +37,7 @@ impl<'a> FlightController {
     }
 
     pub fn run(&mut self) -> Result<()> {
+        log::info!("Started flight controller");
         let config = DrosixParameters::load()?;
         let mut poller = Poller::new(8)?;
 
@@ -46,8 +47,6 @@ impl<'a> FlightController {
         poller.register(&controller.debug, DEBUG, Interest::READABLE)?;
 
         let mut sensors = Sensors::new()?;
-
-        let mut log = File::create(LOG_FILE).context("Cannot create a log file")?;
 
         poller.register(&sensors.imu_event(), IMU, Interest::READABLE)?;
 
@@ -66,6 +65,7 @@ impl<'a> FlightController {
             let events = poller.poll(Some(Duration::from_millis(20)))?;
             if events.is_empty() {
                 // println!("IMU timeout");
+                log::warn!("IMU event timed out");
                 sensors.handle_imu_event()?;
                 sensors.clean_imu()?;
             }
@@ -80,19 +80,15 @@ impl<'a> FlightController {
                     },
                     CONTROLLER => {
                         if !controller.handle_event() {
+                            log::info!("Stopping flight controller");
                             break 'control_loop;
                         }
                     },
                     DEBUG => {
                         controller.handle_debug();
-                        log.write_all(&start.elapsed().as_millis().to_le_bytes()).unwrap();
-                        log.write_all(controller.dump_raw()).unwrap();
-
-                        // println!(
-                        //     "[{}] {:?}",
-                        //     start.elapsed().as_millis(),
-                        //     shared_mem.pid_input
-                        // );
+                        // log.write_all(&start.elapsed().as_millis().to_le_bytes()).unwrap();
+                        // log.write_all(controller.dump_raw()).unwrap();
+                        log::debug!("{}", unsafe { std::str::from_utf8_unchecked(controller.dump_raw()) });
                     },
                     _ => (),
                 }
@@ -132,13 +128,22 @@ impl<'a> FlightController {
             Ok(Command::Flight(cmd)) => {
                 self.last_cmd = Some(cmd);
             },
-            Ok(Command::SwitchDebug(dbg)) => controller.switch_debug(dbg),
-            Ok(Command::Armed(true)) => controller.set_armed(),
-            Ok(Command::Armed(false)) => controller.clear_armed(),
+            Ok(Command::SwitchDebug(dbg)) => {
+                log::info!("Switching debug mode to {:?}", dbg);
+                controller.switch_debug(dbg);
+            },
+            Ok(Command::Armed(true)) => {
+                log::info!("Arming");
+                controller.set_armed();
+            },
+            Ok(Command::Armed(false)) => {
+                log::info!("Disarming");
+                controller.clear_armed();
+            },
             Ok(Command::SetMotor {
                 motor,
                 value,
-            }) => controller.set_motor_speed(motor, value).expect("unreachable"),
+            }) => controller.set_motor_speed(motor, value).unwrap_or_else(|e| log::warn!("{}", e)),
             _ => {},
         }
     }

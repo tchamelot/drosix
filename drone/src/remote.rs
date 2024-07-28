@@ -23,11 +23,11 @@ pub fn remote(remote_tx: Sender<Command>) {
         {
             match event {
                 EventType::Disconnected => {
-                    println!("{:?} New event from {}: Disconected", time, id);
+                    log::info!("New event from {}: Disconected", id);
                     break 'main;
                 },
                 EventType::Connected => {
-                    println!("{:?} New event from {}: Conected", time, id);
+                    log::info!("New event from {}: Conected", id);
                 },
                 EventType::ButtonChanged(Button::LeftTrigger2, value, _) => {
                     // First command to take off so the motors shall start
@@ -72,14 +72,14 @@ pub fn remote(remote_tx: Sender<Command>) {
                     if motor_on > 2 * MOTOR_OFF {
                         motor_on = 2 * MOTOR_OFF;
                     }
-                    println!("PWM: {} ({}%)", motor_on, (f64::from(motor_on) - 199_999.0) / 1999.99);
+                    log::info!("PWM: {} ({}%)", motor_on, (f64::from(motor_on) - 199_999.0) / 1999.99);
                 },
                 EventType::ButtonPressed(Button::DPadDown, _) => {
                     motor_on -= 5000;
                     if motor_on < MOTOR_OFF {
                         motor_on = MOTOR_OFF;
                     }
-                    println!("PWM: {} ({}%)", motor_on, (f64::from(motor_on) - 199_999.0) / 1999.99);
+                    log::info!("PWM: {} ({}%)", motor_on, (f64::from(motor_on) - 199_999.0) / 1999.99);
                 },
                 _ => {
                     // println!("Not handled event: {:?}", event);
