@@ -74,7 +74,8 @@ impl<'a> FlightController {
                     IMU => {
                         self.fly(&mut sensors, &mut controller).or_else(|err| match err.downcast_ref::<Error>() {
                             // TODO Handle error as critical if the drone is armed or flying
-                            Some(Error::NotAvailable | Error::NotCalibarated) => Ok(()),
+                            Some(Error::NotCalibarated) => Ok(()),
+                            Some(Error::NotAvailable) => Ok(log::warn!("IMU data not available")),
                             _ => Err(err),
                         })?
                     },

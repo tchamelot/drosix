@@ -51,6 +51,7 @@ impl Sensors {
             .dmp_features_raw_gyro(true)
             .dmp_features_raw_accel(true)
             .dmp_features_quat6(true)
+            .dmp_features_tap(true)
             .dmp_features_gyro_auto_calibrate(true);
 
         let dmp_firmware = fs::read("/lib/firmware/mpu_firmware.bin")?;
