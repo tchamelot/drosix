@@ -1,6 +1,9 @@
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
+use thread_priority::{
+    RealtimeThreadSchedulePolicy, ScheduleParams, ThreadBuilder, ThreadPriority, ThreadSchedulePolicy
+};
 
 use drone::flight_controller::FlightController;
 use drone::log::Logger;
@@ -20,8 +23,15 @@ fn main() {
 
     let mut controller = FlightController::new(command_rx, answer_tx);
 
-    let drone = thread::spawn(move || controller.run());
-    let remote = thread::spawn(move || remote(command_tx));
+    let drone = ThreadBuilder::default()
+        .name("controller")
+        .policy(ThreadSchedulePolicy::Realtime(RealtimeThreadSchedulePolicy::Fifo))
+        .priority(ThreadPriority::from_posix(ScheduleParams {
+            sched_priority: 40,
+        }))
+        .spawn_careless(move || controller.run())
+        .unwrap();
+    let remote = thread::Builder::new().name("remote".into()).spawn(move || remote(command_tx)).unwrap();
 
     let mut should_snapchot = 50;
     loop {

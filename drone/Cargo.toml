@@ -14,6 +14,7 @@ hal                 = { version = "0.3", package = "linux-embedded-hal" }
 mio                 = { version = "0.8", features = ["os-poll", "os-ext"] } 
 mpu9250             = { version = "0.25", features = ["i2c", "dmp"] }
 prusst              = { git = "https://github.com/tchamelot/prusst" }
+thread-priority     = "1.1"
 
 # Parameters
 serde               = { version = "1.0", features = ["derive"] }
