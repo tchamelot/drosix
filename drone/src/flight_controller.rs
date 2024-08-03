@@ -100,6 +100,7 @@ impl<'a> FlightController {
         Ok(())
     }
 
+    #[function_timer::time("drosix")]
     fn fly(&mut self, sensors: &mut Sensors, controller: &mut PruController) -> Result<()> {
         let mut measures = sensors.handle_imu_event()?;
 

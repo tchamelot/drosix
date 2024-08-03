@@ -24,6 +24,9 @@ gilrs = "0.10"
 
 anyhow              = "1.0"
 log                 = { version = "0.4", features = ["max_level_info", "release_max_level_warn"] }
+function-timer      = "0.8.0"
+metrics-util        = { version = "0.17.0", features = ["debugging"], default-features = false }
+rstats              = "2.1"
 
 [build-dependencies]
 cbindgen = "0.26"
