@@ -30,9 +30,9 @@ pub fn remote(remote_tx: Sender<Command>) {
                     log::info!("New event from {}: Conected", id);
                 },
                 EventType::ButtonChanged(Button::LeftTrigger2, value, _) => {
+                    watchdog = Instant::now();
                     // First command to take off so the motors shall start
                     if !armed && value != 0.0 {
-                        watchdog = Instant::now();
                         armed = true;
                         remote_tx.send(Command::Armed(true)).expect("Cannot send armed from remote to drone");
                     }
