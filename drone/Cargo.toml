@@ -25,10 +25,14 @@ gilrs = "0.10"
 
 anyhow              = "1.0"
 log                 = { version = "0.4", features = ["max_level_info", "release_max_level_warn"] }
-function-timer      = "0.8.0"
-metrics-util        = { version = "0.17.0", features = ["debugging"], default-features = false }
-rstats              = "2.1"
+function-timer      = { version = "0.8", optional = true}
+metrics-util        = { version = "0.17", optional = true, features = ["debugging"], default-features = false }
+rstats              = { version = "2.1", optional = true }
 
 [build-dependencies]
 cbindgen = "0.26"
 heck = "0.4"
+
+[features]
+
+profiling = ["dep:function-timer", "dep:metrics-util", "dep:rstats"]
