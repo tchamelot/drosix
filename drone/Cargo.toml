@@ -24,6 +24,7 @@ toml                = "0.8"
 gilrs = "0.10"
 
 anyhow              = "1.0"
+signal-hook         = "0.3"
 log                 = { version = "0.4", features = ["max_level_info", "release_max_level_warn"] }
 function-timer      = { version = "0.8", optional = true}
 metrics-util        = { version = "0.17", optional = true, features = ["debugging"], default-features = false }

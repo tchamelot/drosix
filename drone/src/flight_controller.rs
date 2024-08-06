@@ -81,7 +81,7 @@ impl<'a> FlightController {
                     },
                     CONTROLLER => {
                         if !controller.handle_event() {
-                            log::info!("Stopping flight controller");
+                            log::info!("Flight controller stopped");
                             break 'control_loop;
                         }
                     },
@@ -146,6 +146,11 @@ impl<'a> FlightController {
                 motor,
                 value,
             }) => controller.set_motor_speed(motor, value).unwrap_or_else(|e| log::warn!("{}", e)),
+            Ok(Command::Stop) => {
+                log::warn!("Stoping flight controller");
+                controller.stop();
+            },
+            Ok(other) => log::warn!("Command not handled: {:?}", other),
             _ => {},
         }
     }

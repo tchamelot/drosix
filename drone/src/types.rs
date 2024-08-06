@@ -46,12 +46,13 @@ pub struct Odometry {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct FlightCommand {
     pub thrust: f32,
     pub angles: Angles,
 }
 
+#[derive(Debug)]
 pub enum Command {
     Flight(FlightCommand),
     SwitchDebug(DebugConfig),
@@ -60,6 +61,7 @@ pub enum Command {
         motor: usize,
         value: u32,
     },
+    Stop,
 }
 
 enum NotUsedSharedMemoryLog {
