@@ -1,4 +1,4 @@
-use crate::config::DrosixParameters;
+use crate::config::DROSIX_CONFIG;
 use crate::controller::PruController;
 use crate::polling::Poller;
 use crate::sensor::{Error, Sensors};
@@ -34,7 +34,6 @@ impl<'a> FlightController {
 
     pub fn run(&mut self) -> Result<()> {
         log::info!("Started flight controller");
-        let config = DrosixParameters::load()?;
         let mut poller = Poller::new(8)?;
 
         let mut pru = Pruss::new(&PruController::config()).context("Instanciating PRUSS")?;
@@ -46,13 +45,13 @@ impl<'a> FlightController {
 
         poller.register(&sensors.imu_event(), IMU, Interest::READABLE)?;
 
-        controller.set_rate_pid(config.rate_pid);
-        controller.set_attitude_pid(config.attitude_pid);
+        controller.set_rate_pid(DROSIX_CONFIG.get("rate_pid")?);
+        controller.set_attitude_pid(DROSIX_CONFIG.get("attitude_pid")?);
         controller.set_thrust_pid(Pid {
             numerator: [1.0, 0.0, 0.0],
             denominator: [0.0, 0.0],
         });
-        controller.switch_debug(config.debug_config);
+        controller.switch_debug(DROSIX_CONFIG.get("debug_config")?);
 
         PruController::start(&mut pru.pru0, &mut pru.pru1)?;
 
@@ -134,6 +133,7 @@ impl<'a> FlightController {
             Ok(Command::Armed(false)) => {
                 log::info!("Disarming");
                 controller.clear_armed();
+                self.last_cmd = None;
             },
             Ok(Command::SetMotor {
                 motor,

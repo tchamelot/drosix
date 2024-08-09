@@ -1,9 +1,15 @@
 use anyhow::{Context, Result};
+use config::Config;
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 
 use crate::types::{AnglePid, DebugConfig};
 
 const CONFIG_FILE: &'static str = "drosix.toml";
+
+pub static DROSIX_CONFIG: LazyLock<Config> = LazyLock::new(|| {
+    Config::builder().add_source(config::File::with_name(CONFIG_FILE)).build().expect("Loading Drosix config")
+});
 
 /// Drosix configuration parameters
 #[derive(Serialize, Deserialize, Debug)]

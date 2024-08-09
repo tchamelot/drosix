@@ -24,6 +24,7 @@ toml                = "0.8"
 gilrs = "0.10"
 
 anyhow              = "1.0"
+config              = { version = "0.14", default-features = false, features = ["toml"] }
 signal-hook         = "0.3"
 log                 = { version = "0.4", features = ["max_level_info", "release_max_level_warn"] }
 function-timer      = { version = "0.8", optional = true}
