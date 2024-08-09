@@ -1,6 +1,5 @@
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
-use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use log::{Level, LevelFilter, Log, Metadata, Record};
 
@@ -20,6 +19,7 @@ pub struct LogSink {
     #[cfg(feature = "profiling")]
     snapchotter: Snapshotter,
     start: Instant,
+    #[cfg(feature = "profiling")]
     previous: Instant,
 }
 
@@ -48,13 +48,14 @@ impl Logger {
             #[cfg(feature = "profiling")]
             snapchotter,
             start,
+            #[cfg(feature = "profiling")]
             previous: start,
         }
     }
 }
 
 impl Log for Logger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
+    fn enabled(&self, _: &Metadata) -> bool {
         true
     }
 
@@ -81,25 +82,27 @@ impl LogSink {
                 record.content
             );
         }
-        let delta = self.previous.elapsed().as_secs_f32();
         #[cfg(feature = "profiling")]
-        if delta > 0.5 {
-            let snapchot = self.snapchotter.snapshot();
-            for (key, _, _, metric) in snapchot.into_vec().iter() {
-                if let DebugValue::Histogram(histogram) = metric {
-                    let max = histogram.iter().max().map(|x| x.into_inner()).unwrap_or(0.0);
-                    let stats = histogram.ameanstd().unwrap();
-                    let freq = histogram.len() as f32 / delta;
-                    println!(
-                        "[{:<9.5}] {:<5}: {} frequency: {:>6.2}Hz, max: {:>6.2e}s, mean {:>6.2e}s ± {:>4.2e}s",
-                        self.start.elapsed().as_secs_f32(),
-                        Level::Trace,
-                        key.key().labels().next().unwrap().value(),
-                        freq,
-                        max,
-                        stats.centre,
-                        stats.spread
-                    );
+        {
+            let delta = self.previous.elapsed().as_secs_f32();
+            if delta > 0.5 {
+                let snapchot = self.snapchotter.snapshot();
+                for (key, _, _, metric) in snapchot.into_vec().iter() {
+                    if let DebugValue::Histogram(histogram) = metric {
+                        let max = histogram.iter().max().map(|x| x.into_inner()).unwrap_or(0.0);
+                        let stats = histogram.ameanstd().unwrap();
+                        let freq = histogram.len() as f32 / delta;
+                        println!(
+                            "[{:<9.5}] {:<5}: {} frequency: {:>6.2}Hz, max: {:>6.2e}s, mean {:>6.2e}s ± {:>4.2e}s",
+                            self.start.elapsed().as_secs_f32(),
+                            Level::Trace,
+                            key.key().labels().next().unwrap().value(),
+                            freq,
+                            max,
+                            stats.centre,
+                            stats.spread
+                        );
+                    }
                 }
             }
             self.previous = Instant::now();

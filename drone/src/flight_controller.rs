@@ -11,11 +11,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use anyhow::{Context, Result};
 
 use prusst::Pruss;
-use std::fs::File;
-use std::io::Write;
-use std::time::{Duration, Instant};
-
-const LOG_FILE: &'static str = "/tmp/drosix.log";
+use std::time::Duration;
 
 const IMU: Token = Token(0);
 const CONTROLLER: Token = Token(1);
@@ -59,7 +55,6 @@ impl<'a> FlightController {
         controller.switch_debug(config.debug_config);
 
         PruController::start(&mut pru.pru0, &mut pru.pru1)?;
-        let start = Instant::now();
 
         'control_loop: loop {
             let events = poller.poll(Some(Duration::from_millis(20)))?;
@@ -87,8 +82,6 @@ impl<'a> FlightController {
                     },
                     DEBUG => {
                         controller.handle_debug();
-                        // log.write_all(&start.elapsed().as_millis().to_le_bytes()).unwrap();
-                        // log.write_all(controller.dump_raw()).unwrap();
                         log::debug!("{}", unsafe { std::str::from_utf8_unchecked(controller.dump_raw()) });
                     },
                     _ => (),
@@ -150,7 +143,6 @@ impl<'a> FlightController {
                 log::warn!("Stoping flight controller");
                 controller.stop();
             },
-            Ok(other) => log::warn!("Command not handled: {:?}", other),
             _ => {},
         }
     }

@@ -38,7 +38,7 @@ fn main() {
         .unwrap();
 
     let remote_tx = command_tx.clone();
-    let remote = thread::Builder::new().name("remote".into()).spawn(move || remote(remote_tx)).unwrap();
+    let _remote = thread::Builder::new().name("remote".into()).spawn(move || remote(remote_tx)).unwrap();
 
     while !stop.load(Ordering::Relaxed) {
         log_sink.handle_logs();

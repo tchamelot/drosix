@@ -1,9 +1,8 @@
 use gilrs::{Button, Event, EventType, Gilrs};
 use std::sync::mpsc::Sender;
-use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::types::{Angles, Command, DebugConfig, FlightCommand};
+use crate::types::{Angles, Command, FlightCommand};
 
 const MOTOR_OFF: u32 = 199_999;
 const MOTOR_ON: u32 = 215_000;
@@ -18,7 +17,7 @@ pub fn remote(remote_tx: Sender<Command>) {
         if let Some(Event {
             id,
             event,
-            time,
+            time: _,
         }) = gilrs.next_event()
         {
             match event {

@@ -63,15 +63,3 @@ pub enum Command {
     },
     Stop,
 }
-
-enum NotUsedSharedMemoryLog {
-    Debug {
-        pid_input: [f32; 7],
-        pid_output: [f32; 4],
-        debug_config: DebugConfig,
-        p_pid: [f32; 3],
-        v_pid: [f32; 3],
-        cycle: u32,
-        stall: u32,
-    },
-}
