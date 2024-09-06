@@ -81,7 +81,7 @@ impl<'a> FlightController {
                     },
                     DEBUG => {
                         controller.handle_debug();
-                        log::debug!("{}", unsafe { std::str::from_utf8_unchecked(controller.dump_raw()) });
+                        log::info!("MEASURES {}", unsafe { std::str::from_utf8_unchecked(controller.dump_raw()) });
                     },
                     _ => (),
                 }
