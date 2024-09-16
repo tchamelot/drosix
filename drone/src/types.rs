@@ -46,7 +46,7 @@ pub struct Odometry {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct FlightCommand {
     pub thrust: f32,
     pub angles: Angles,
