@@ -1,4 +1,4 @@
-use gilrs::{Button, Event, EventType, Gilrs};
+use gilrs::{Axis, Button, Event, EventType, Gilrs};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 
@@ -11,7 +11,9 @@ pub fn remote(remote_tx: Sender<Command>) {
     let mut gilrs = Gilrs::new().unwrap();
     let mut armed = false;
     let mut watchdog = Instant::now();
+    let mut rate_limiter = Instant::now();
     let mut motor_on = MOTOR_ON;
+    let mut cmd = FlightCommand::default();
 
     'main: loop {
         if let Some(Event {
@@ -35,12 +37,18 @@ pub fn remote(remote_tx: Sender<Command>) {
                         armed = true;
                         remote_tx.send(Command::Armed(true)).expect("Cannot send armed from remote to drone");
                     }
-                    remote_tx
-                        .send(Command::Flight(FlightCommand {
-                            thrust: value.into(),
-                            angles: Angles::default(),
-                        }))
-                        .expect("Cannot send command from remote to drone");
+                    // TODO check this behavior
+                    else if armed && value == 0.0 {
+                        armed = false;
+                        remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
+                    }
+                    cmd.thrust = value;
+                },
+                EventType::AxisChanged(Axis::LeftStickY, value, _) => {
+                    cmd.angles.pitch = value;
+                },
+                EventType::AxisChanged(Axis::LeftStickX, value, _) => {
+                    cmd.angles.roll = value;
                 },
                 EventType::ButtonChanged(
                     button @ Button::North | button @ Button::South | button @ Button::East | button @ Button::West,
@@ -86,11 +94,16 @@ pub fn remote(remote_tx: Sender<Command>) {
             }
         } else {
             // No event during the previous second so the motors shall stop
-            if armed && watchdog.elapsed().as_secs() > 1 {
+            if armed && watchdog.elapsed().as_millis() > 1000 {
                 remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
                 armed = false;
             }
         }
-        std::thread::sleep(Duration::from_millis(10));
+
+        // Rate limiter at 20Hz (T = 50ms)
+        if rate_limiter.elapsed().as_millis() > 50 {
+            remote_tx.send(Command::Flight(cmd)).expect("Cannot send command from remote to drone");
+        }
+        std::thread::sleep(Duration::from_millis(5));
     }
 }
