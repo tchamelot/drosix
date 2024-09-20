@@ -1,6 +1,7 @@
 use std::io::{BufWriter, Write};
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::OnceLock;
 use std::time::Instant;
 
 use anyhow::Result;
@@ -8,13 +9,17 @@ use log::{Level, LevelFilter, Log, Metadata, Record};
 use serde::Deserialize;
 
 use crate::config::DROSIX_CONFIG;
+use crate::types::{Angles, FlightCommand, Odometry};
 
 #[cfg(feature = "profiling")]
 use metrics_util::debugging::{DebugValue, DebuggingRecorder, Snapshotter};
 #[cfg(feature = "profiling")]
 use rstats::Stats;
 
+// TODO handle port through config file
 const BROADCAST: &'static str = "255.255.255.255:9000";
+
+static SCOPE: OnceLock<&'static Logger> = OnceLock::new();
 
 #[derive(Deserialize)]
 #[serde(tag = "sink", rename_all = "lowercase")]
@@ -48,8 +53,35 @@ struct SyncRecord {
     content: String,
 }
 
+pub struct MeasureRecord {
+    pub command: FlightCommand,
+    pub sensor: Odometry,
+    pub position_pid: Angles,
+    pub velocity_pid: Angles,
+}
+
+struct SyncMeasure {
+    timestamp: Instant,
+    measure: MeasureRecord,
+}
+
+impl std::fmt::Display for MeasureRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let raw = unsafe {
+            let slice = std::slice::from_raw_parts((self as *const Self) as *const u8, std::mem::size_of::<Self>());
+            std::str::from_utf8_unchecked(slice)
+        };
+        write!(f, "{}", raw)
+    }
+}
+
+pub fn scope(measure: MeasureRecord) {
+    SCOPE.get().map(|x| x.scope(measure));
+}
+
 pub struct LogSink {
-    receiver: Receiver<SyncRecord>,
+    log_rx: Receiver<SyncRecord>,
+    measure_rx: Receiver<SyncMeasure>,
     start: Instant,
     output: BufWriter<Box<dyn Write>>,
     #[cfg(feature = "profiling")]
@@ -59,19 +91,25 @@ pub struct LogSink {
 }
 
 pub struct Logger {
-    sender: SyncSender<SyncRecord>,
+    log_tx: SyncSender<SyncRecord>,
+    measure_tx: SyncSender<SyncMeasure>,
 }
 
 impl Logger {
     pub fn init() -> LogSink {
-        let (sender, receiver) = sync_channel(20);
+        let (log_tx, log_rx) = sync_channel(20);
+        let (measure_tx, measure_rx) = sync_channel(3);
         let start = Instant::now();
         let logger = Box::new(Self {
-            sender,
+            log_tx,
+            measure_tx,
         });
-        log::set_logger(Box::leak(logger))
+        let logger_ref = Box::leak(logger);
+        log::set_logger(logger_ref)
             .map(|()| log::set_max_level(LevelFilter::Trace))
             .expect("Cannot install global logger");
+        // Can only happen once in this function
+        SCOPE.set(logger_ref).map_err(|_| ()).expect("Cannot install global measurer");
         #[cfg(feature = "profiling")]
         let snapchotter = {
             let recorder = DebuggingRecorder::new();
@@ -82,7 +120,8 @@ impl Logger {
         let config: LogConfig = DROSIX_CONFIG.get("log").unwrap_or(LogConfig::Stdout);
         let output = config.to_writer().unwrap();
         LogSink {
-            receiver,
+            log_rx,
+            measure_rx,
             start,
             output,
             #[cfg(feature = "profiling")]
@@ -90,6 +129,13 @@ impl Logger {
             #[cfg(feature = "profiling")]
             previous: start,
         }
+    }
+
+    fn scope(&self, measure: MeasureRecord) {
+        let _ = self.measure_tx.try_send(SyncMeasure {
+            timestamp: Instant::now(),
+            measure,
+        });
     }
 }
 
@@ -100,7 +146,7 @@ impl Log for Logger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            let _ = self.sender.try_send(SyncRecord {
+            let _ = self.log_tx.try_send(SyncRecord {
                 timestamp: Instant::now(),
                 content: std::fmt::format(*record.args()),
                 level: record.level(),
@@ -110,19 +156,27 @@ impl Log for Logger {
 
     fn flush(&self) {}
 }
-// TODO Handle different log output:
-// - stdout
-// - file
-// - udp
+
 impl LogSink {
     pub fn handle_logs(&mut self) {
-        for record in self.receiver.try_iter() {
+        for record in self.log_rx.try_iter() {
             writeln!(
                 self.output,
                 "[{:<9.5}] {:<5}: {}",
                 record.timestamp.duration_since(self.start).as_secs_f32(),
                 record.level,
                 record.content
+            )
+            .inspect_err(|err| eprintln!("{}", err))
+            .ok();
+        }
+
+        for measure in self.measure_rx.try_iter() {
+            writeln!(
+                self.output,
+                "[{:<9.5}] MEASURE {}",
+                measure.timestamp.duration_since(self.start).as_secs_f32(),
+                measure.measure
             )
             .inspect_err(|err| eprintln!("{}", err))
             .ok();

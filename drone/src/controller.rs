@@ -216,13 +216,14 @@ impl<'a> PruController<'a> {
     pub fn dump_raw(&self) -> &[u8] {
         unsafe {
             std::slice::from_raw_parts(
-                (&self.shared_mem.pid_input as *const VolatileCell<Odometry>) as *const u8,
-                std::mem::size_of::<VolatileCell<Odometry>>()
-                    + std::mem::size_of::<[VolatileCell<u32>; 4]>()
-                    + std::mem::size_of::<VolatileCell<Angles>>()
-                    + std::mem::size_of::<VolatileCell<Angles>>(),
+                (&self.shared_mem.p_pid as *const VolatileCell<Angles>) as *const u8,
+                std::mem::size_of::<VolatileCell<Angles>>() + std::mem::size_of::<VolatileCell<Angles>>(),
             )
         }
+    }
+
+    pub fn read_pid(&self) -> (Angles, Angles) {
+        (self.shared_mem.p_pid.get(), self.shared_mem.v_pid.get())
     }
 }
 
