@@ -1,8 +1,9 @@
 use crate::config::DROSIX_CONFIG;
 use crate::controller::PruController;
+use crate::log::{scope, MeasureRecord};
 use crate::polling::Poller;
 use crate::sensor::{Error, Sensors};
-use crate::types::{Command, FlightCommand, Pid};
+use crate::types::{Command, FlightCommand, Odometry, Pid};
 
 use mio::{Interest, Token};
 
@@ -18,7 +19,8 @@ const CONTROLLER: Token = Token(1);
 const DEBUG: Token = Token(2);
 
 pub struct FlightController {
-    last_cmd: Option<FlightCommand>,
+    command: FlightCommand,
+    measures: Odometry,
     server_rx: Receiver<Command>,
     server_tx: Sender<()>,
 }
@@ -26,7 +28,8 @@ pub struct FlightController {
 impl<'a> FlightController {
     pub fn new(server_rx: Receiver<Command>, server_tx: Sender<()>) -> Self {
         Self {
-            last_cmd: None,
+            command: FlightCommand::default(),
+            measures: Odometry::default(),
             server_rx,
             server_tx,
         }
@@ -58,7 +61,6 @@ impl<'a> FlightController {
         'control_loop: loop {
             let events = poller.poll(Some(Duration::from_millis(20)))?;
             if events.is_empty() {
-                // println!("IMU timeout");
                 log::warn!("IMU event timed out");
                 sensors.handle_imu_event()?;
                 sensors.clean_imu()?;
@@ -80,8 +82,15 @@ impl<'a> FlightController {
                         }
                     },
                     DEBUG => {
+                        // TODO validate
                         controller.handle_debug();
-                        log::info!("MEASURES {}", unsafe { std::str::from_utf8_unchecked(controller.dump_raw()) });
+                        let (position_pid, velocity_pid) = controller.read_pid();
+                        scope(MeasureRecord {
+                            command: self.command,
+                            sensor: self.measures,
+                            position_pid,
+                            velocity_pid,
+                        });
                     },
                     _ => (),
                 }
@@ -92,35 +101,26 @@ impl<'a> FlightController {
         Ok(())
     }
 
+    // TODO rerun profiling
     #[cfg_attr(feature = "profiling", function_timer::time("drosix"))]
     fn fly(&mut self, sensors: &mut Sensors, controller: &mut PruController) -> Result<()> {
         let mut measures = sensors.handle_imu_event()?;
+        self.measures = measures;
 
         measures.thrust = 0.0;
-        // Keeps for adjusting purpose
-        // let mut inputs = [
-        //     (-measures.euler[1]) as f32, // p_measure_x
-        //     (-measures.euler[0]) as f32, // p_measure_y
-        //     (-measures.euler[2]) as f32, // p_measure_z
-        //     (0) as f32,                  // thrust
-        //     (-measures.gyro[1]) as f32,  // v_measure_x
-        //     (-measures.gyro[0]) as f32,  // v_measure_y
-        //     (-measures.gyro[2]) as f32,  // v_measure_z
-        // ];
-        measures.attitude.roll *= -1.0;
-        measures.attitude.pitch *= -1.0;
+        measures.thrust += self.command.thrust * 99999.0;
+        measures.attitude.roll *= -1.0 + self.command.angles.pitch * f32::to_radians(5.0);
+        measures.attitude.pitch *= -1.0 + self.command.angles.roll * f32::to_radians(5.0);
         measures.attitude.yaw *= -1.0;
-        if let Some(command) = self.last_cmd {
-            measures.thrust += command.thrust * 99999.0;
-        }
+
         controller.set_pid_inputs(measures);
         Ok(())
     }
 
     fn handle_command(&mut self, controller: &mut PruController) {
         match self.server_rx.try_recv() {
-            Ok(Command::Flight(cmd)) => {
-                self.last_cmd = Some(cmd);
+            Ok(Command::Flight(command)) => {
+                self.command = command;
             },
             Ok(Command::SwitchDebug(dbg)) => {
                 log::info!("Switching debug mode to {:?}", dbg);
@@ -133,7 +133,7 @@ impl<'a> FlightController {
             Ok(Command::Armed(false)) => {
                 log::info!("Disarming");
                 controller.clear_armed();
-                self.last_cmd = None;
+                self.command = FlightCommand::default();
             },
             Ok(Command::SetMotor {
                 motor,
