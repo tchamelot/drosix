@@ -5,64 +5,100 @@ from matplotlib.widgets import CheckButtons
 import numpy as np
 from collections import deque
 import socket
-import re
 import struct
+import threading
+import queue
+import datetime
+import argparse
 
 
-# TODO collect from drone
-def data_denerator():
-    time = 0
-    while True:
-        frame = [
-            np.linspace(time, time + 0.05, 5),
-            np.random.random((3, 5)),
-            np.random.random((3, 5)),
-            np.random.random((4, 5)),
-            np.random.random((2, 5)),
-        ]
-        time += 0.05
-        yield frame
+TO_DEG = 180 / np.pi
 
 
 class DrosixSink:
-    def __init__(self, address: str = "0.0.0.0", port: int = 9000):
+    def __init__(self, address: str = "0.0.0.0", port: int = 9000, file=None):
+        self.run = threading.Event()
+        self.run.set()
+        self.queue = queue.Queue()
+        self.iter_buf_size = 3
+        if file:
+            self.thread = threading.Thread(target=self._file_receiver, args=(file,))
+            self.iter_buf_size = 1000
+        else:
+            self.thread = threading.Thread(
+                target=self._udp_receiver, args=(address, port)
+            )
+        self.thread.start()
+
+    def stop(self):
+        self.run.clear()
+        self.thread.join()
+
+    def _udp_receiver(self, address, port):
+        now = datetime.datetime.now()
+        save_name = f"logs/drosix_{now.year}-{now.month:02d}-{now.day:02d}-{now.hour:02d}-{now.minute:02d}.log"
+        save_fd = open(save_name, "wb")
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.settimeout(0.03)
+        self.socket.settimeout(1)
         self.socket.bind((address, port))
-        self.open = True
+        while self.run.is_set():
+            try:
+                data = self.socket.recv(1024)
+            except socket.timeout:
+                continue
+            save_fd.write(data)
+            self._parse(data)
+
+    def _file_receiver(self, path):
+        fd = open(path, "rb")
+        while self.run.is_set():
+            data = fd.read()
+            self._parse(data)
+
+    def _parse(self, data):
+        while len(data) > 12:
+            if data[12:].startswith(b"MEASURE"):
+                time = float(data[1:10])
+                # command: thrust roll pitch yaw
+                # sensor: roll pitch yaw droll dpitch dyaw thrust
+                # pos pid: roll pitch yaw
+                # vel pid: roll pitch yaw
+                measures = list(struct.unpack("<ffff fffffff fff fff", data[20:88]))
+                self.queue.put((time, measures))
+                data = data[89:]
+            else:
+                line, data = data.split(b"\n", maxsplit=1)
+                print(f"LOG: {line.decode()}")
 
     def __iter__(self):
-        head = b""
-        frame = np.empty((0, 18))
-        while self.open:
+        frame = np.empty((self.iter_buf_size, 18))
+        cursor = 0
+        flush = False
+        while self.run.is_set():
             try:
-                data = (self.socket.recv(1024)).strip().split(b"\n")
-            except socket.timeout:
-                yield np.empty((0, 18))
-                continue
-            for line in data:
-                match = re.match(rb"\[(\d+\.\d+)\s*\].*MEASURES (.*)$", head + line)
-                if match:
-                    time = float(match.group(1))
-                    measures = match.group(2)
-                    if len(measures) != 68:
-                        head = head + line
-                        continue
-                    else:
-                        head = b""
-                    measures = list(struct.unpack("<fff fff f IIII fff fff", measures))
-                    frame = np.vstack((frame, [time] + measures))
+                (time, measures) = self.queue.get(timeout=0.03)
+                frame[cursor, 0] = time
+                frame[cursor, 1:] = measures
+                cursor += 1
+            except queue.Empty:
+                flush = True
 
-                else:
-                    print(f"LOG: {line.decode()}")
-            if len(frame) >= 3:
-                yield frame.T
-                frame = np.empty((0, 18))
+            if cursor >= frame.shape[0] or flush:
+                frame[:cursor, 1:4] *= 5
+                frame[:cursor, 4:10] *= TO_DEG
+                yield frame[:cursor].T
+                cursor = 0
+                flush = False
 
 
 class Graph:
     def __init__(
-        self, ax: plt.Axes, title: str, labels: [str], ylim: tuple[float, float]
+        self,
+        ax: plt.Axes,
+        title: str,
+        labels: [str],
+        ylim: tuple[float, float],
+        with_ref: bool = False,
     ):
         ax.set_title(title)
         ax.set_ylim(*ylim)
@@ -71,6 +107,7 @@ class Graph:
         self.lines = {}
         for label in labels:
             (self.lines[label],) = self.ax.plot([], [], label=label)
+
         rax = self.ax.inset_axes([1.0, 0.8, 0.15, 0.2])
         colors = [line.get_color() for line in self.lines.values()]
         self.check = CheckButtons(
@@ -81,6 +118,11 @@ class Graph:
         )
         self.check.on_clicked(self.on_checkbox)
         self.previous_check = []
+        if with_ref:
+            self.refs = {}
+            for label, color in zip(labels, colors):
+                (self.refs[label],) = self.ax.plot([], [], color=color, linestyle=":")
+        self.with_ref = with_ref
 
     def set_visible(self, visible: bool):
         self.ax.set_visible(visible)
@@ -91,19 +133,31 @@ class Graph:
             self.previous_check = self.check.get_status()
             self.check.clear()
 
-    def set_data(self, time: [float], data: [[float]]):
+    def set_data(self, time: [float], data: [[float]], ref: [[float]] = []):
         for i, line in enumerate(self.lines.values()):
             line.set_data(time, data[i])
-        limit = max(1, max(time))
-        self.ax.set_xlim(limit - 1, limit)
+        if self.with_ref:
+            for i, line in enumerate(self.refs.values()):
+                line.set_data(time, ref[i])
+
+        up = max(time)
+        down = min(time)
+        self.ax.set_xlim(down, up)
 
     def on_checkbox(self, label: str | None):
         if label:
             line = self.lines[label]
             line.set_visible(not line.get_visible())
+            if self.with_ref:
+                line = self.refs[label]
+                line.set_visible(not line.get_visible())
+
         else:
             for line in self.lines.values():
                 line.set_visible(False)
+            if self.with_ref:
+                for line in self.refs.values():
+                    line.set_visible(False)
         line.figure.canvas.draw_idle()
 
 
@@ -117,6 +171,11 @@ class Plotter:
         self.gs_single = gridspec.GridSpec(1, 1)
         self.zoomed = False
         self.time = deque(maxlen=window_size)
+        self.ref = [
+            deque(maxlen=window_size),
+            deque(maxlen=window_size),
+            deque(maxlen=window_size),
+        ]
         self.pos = [
             deque(maxlen=window_size),
             deque(maxlen=window_size),
@@ -127,16 +186,12 @@ class Plotter:
             deque(maxlen=window_size),
             deque(maxlen=window_size),
         ]
-        self.mot = [
-            deque(maxlen=window_size),
+        self.p_pid = [
             deque(maxlen=window_size),
             deque(maxlen=window_size),
             deque(maxlen=window_size),
         ]
-        self.pid = [
-            deque(maxlen=window_size),
-            deque(maxlen=window_size),
-            deque(maxlen=window_size),
+        self.v_pid = [
             deque(maxlen=window_size),
             deque(maxlen=window_size),
             deque(maxlen=window_size),
@@ -146,11 +201,11 @@ class Plotter:
         self.ax_vel = self.fig.add_subplot(
             self.gs_full[1], label="Velocity", sharex=self.ax_pos
         )
-        self.ax_mot = self.fig.add_subplot(
-            self.gs_full[2], label="Motors", sharex=self.ax_pos
+        self.ax_ppid = self.fig.add_subplot(
+            self.gs_full[2], label="Position PID", sharex=self.ax_pos
         )
-        self.ax_pid = self.fig.add_subplot(
-            self.gs_full[3], label="PIDs", sharex=self.ax_pos
+        self.ax_vpid = self.fig.add_subplot(
+            self.gs_full[3], label="Velocity PID", sharex=self.ax_pos
         )
 
         self.graph = {}
@@ -158,31 +213,25 @@ class Plotter:
             ax=self.ax_pos,
             title="Position",
             labels=["Roll", "Pitch", "Yaw"],
-            ylim=(-1.6, 1.6),
+            ylim=(-45, 45),
+            with_ref=True,
         )
         self.graph["Velocity"] = Graph(
             ax=self.ax_vel,
             title="Velocity",
             labels=["Roll", "Pitch", "Yaw"],
+            ylim=(-50, 50),
+        )
+        self.graph["Position PID"] = Graph(
+            ax=self.ax_ppid,
+            title="Position PID",
+            labels=["Roll", "Pitch", "Yaw"],
             ylim=(-10, 10),
         )
-        self.graph["Motors"] = Graph(
-            ax=self.ax_mot,
-            title="Motors",
-            labels=["M0", "M1", "M2", "M3"],
-            ylim=(150000, 400000),
-        )
-        self.graph["PIDs"] = Graph(
-            ax=self.ax_pid,
-            title="PIDs",
-            labels=[
-                "PID roll",
-                "PID pitch",
-                "PID yaw",
-                "PID vroll",
-                "PID vpitch",
-                "PID vyaw",
-            ],
+        self.graph["Velocity PID"] = Graph(
+            ax=self.ax_vpid,
+            title="Velocitiy PID",
+            labels=["Roll", "Pitch", "Yaw"],
             ylim=(-50000, 50000),
         )
 
@@ -225,6 +274,7 @@ class Plotter:
             plt.draw()
         elif event.key == "q":
             plt.close(event.canvas.figure)
+            self.sink.stop()
         elif event.key == " ":
             if self.running:
                 self.anim.pause()
@@ -234,26 +284,32 @@ class Plotter:
                 self.running = True
 
     def animate(self, frame):
-        if len(frame) > 0:
+        if frame.size > 0:
             self.time.extend(frame[0])
-            [self.pos[i].extend(frame[1 + i]) for i in range(0, 3)]
-            [self.vel[i].extend(frame[4 + i]) for i in range(0, 3)]
-            [self.mot[i].extend(frame[8 + i]) for i in range(0, 4)]
-            [self.pid[i].extend(frame[12 + i]) for i in range(0, 6)]
+            [self.ref[i].extend(frame[2 + i]) for i in range(0, 3)]
+            [self.pos[i].extend(frame[5 + i]) for i in range(0, 3)]
+            [self.vel[i].extend(frame[8 + i]) for i in range(0, 3)]
+            [self.p_pid[i].extend(frame[12 + i]) for i in range(0, 3)]
+            [self.v_pid[i].extend(frame[15 + i]) for i in range(0, 3)]
 
-            self.graph["Position"].set_data(self.time, self.pos)
+            self.graph["Position"].set_data(self.time, self.pos, ref=self.ref)
             self.graph["Velocity"].set_data(self.time, self.vel)
-            self.graph["Motors"].set_data(self.time, self.mot)
-            self.graph["PIDs"].set_data(self.time, self.pid)
-
-            artits = []
-            for graph in self.graph.values():
-                if graph.ax.get_visible():
-                    artits += graph.ax.get_lines()
-            return artits
+            self.graph["Position PID"].set_data(self.time, self.p_pid)
+            self.graph["Velocity PID"].set_data(self.time, self.v_pid)
 
 
 if __name__ == "__main__":
-    sink = DrosixSink()
-    plotter = Plotter(sink)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--udp", dest="port", default=9000)
+    parser.add_argument("-f", "--file")
+    args = parser.parse_args()
+    print(args)
+
+    if args.file:
+        sink = DrosixSink(file=args.file)
+        plotter = Plotter(sink, window_size=None)
+    else:
+        sink = DrosixSink(port=args.port)
+        plotter = Plotter(sink)
+
     plt.show()
