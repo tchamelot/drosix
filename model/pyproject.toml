@@ -11,4 +11,12 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
-
+dependencies = [
+    "numpy",
+    "scipy",
+    "control",
+    "sympy",
+    "matplotlib",
+    "toml",
+    "pandas",
+    ]
