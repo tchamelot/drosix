@@ -16,11 +16,18 @@ TO_DEG = 180 / np.pi
 
 
 class DrosixSink:
-    def __init__(self, address: str = "0.0.0.0", port: int = 9000, file=None):
+    def __init__(
+        self,
+        address: str = "0.0.0.0",
+        port: int = 9000,
+        file: str = None,
+        record: bool = False,
+    ):
         self.run = threading.Event()
         self.run.set()
         self.queue = queue.Queue()
         self.iter_buf_size = 3
+        self.record = record
         if file:
             self.thread = threading.Thread(target=self._file_receiver, args=(file,))
             self.iter_buf_size = 1000
@@ -35,9 +42,10 @@ class DrosixSink:
         self.thread.join()
 
     def _udp_receiver(self, address, port):
-        now = datetime.datetime.now()
-        save_name = f"logs/drosix_{now.year}-{now.month:02d}-{now.day:02d}-{now.hour:02d}-{now.minute:02d}.log"
-        save_fd = open(save_name, "wb")
+        if self.record:
+            now = datetime.datetime.now()
+            save_name = f"logs/drosix_{now.year}-{now.month:02d}-{now.day:02d}-{now.hour:02d}-{now.minute:02d}.log"
+            save_fd = open(save_name, "wb")
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.settimeout(1)
         self.socket.bind((address, port))
@@ -46,7 +54,8 @@ class DrosixSink:
                 data = self.socket.recv(1024)
             except socket.timeout:
                 continue
-            save_fd.write(data)
+            if self.record:
+                save_fd.write(data)
             self._parse(data)
 
     def _file_receiver(self, path):
@@ -302,6 +311,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--udp", dest="port", default=9000)
     parser.add_argument("-f", "--file")
+    parser.add_argument("-r", "--record", action="store_true")
     args = parser.parse_args()
     print(args)
 
