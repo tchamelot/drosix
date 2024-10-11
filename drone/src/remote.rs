@@ -94,7 +94,7 @@ pub fn remote(remote_tx: Sender<Command>) {
             }
         } else {
             // No event during the previous second so the motors shall stop
-            if armed && watchdog.elapsed().as_millis() > 1000 {
+            if armed && watchdog.elapsed().as_millis() > 10000 {
                 remote_tx.send(Command::Armed(false)).expect("Cannot send disarmed from remote to drone");
                 armed = false;
             }
@@ -103,6 +103,7 @@ pub fn remote(remote_tx: Sender<Command>) {
         // Rate limiter at 20Hz (T = 50ms)
         if rate_limiter.elapsed().as_millis() > 50 {
             remote_tx.send(Command::Flight(cmd)).expect("Cannot send command from remote to drone");
+            rate_limiter = Instant::now();
         }
         std::thread::sleep(Duration::from_millis(5));
     }
