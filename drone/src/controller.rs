@@ -225,6 +225,10 @@ impl<'a> PruController<'a> {
     pub fn read_pid(&self) -> (Angles, Angles) {
         (self.shared_mem.p_pid.get(), self.shared_mem.v_pid.get())
     }
+
+    pub fn read_cycle(&self) -> u32 {
+        dbg!(self.shared_mem.cycle.get())
+    }
 }
 
 impl<'a> Drop for PruController<'a> {

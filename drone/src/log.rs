@@ -189,7 +189,7 @@ impl LogSink {
                 for (key, _, _, metric) in snapchot.into_vec().iter() {
                     if let DebugValue::Histogram(histogram) = metric {
                         let max = histogram.iter().max().map(|x| x.into_inner()).unwrap_or(0.0);
-                        let stats = histogram.ameanstd().unwrap();
+                        let stats = histogram.ameanstd().unwrap_or_default();
                         let freq = histogram.len() as f32 / delta;
                         writeln!(
                             self.output,

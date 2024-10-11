@@ -27,6 +27,7 @@ anyhow              = "1.0"
 config              = { version = "0.14", default-features = false, features = ["toml"] }
 signal-hook         = "0.3"
 log                 = { version = "0.4", features = ["max_level_info", "release_max_level_warn"] }
+metrics             = { version = "0.23", optional = true }
 function-timer      = { version = "0.8", optional = true}
 metrics-util        = { version = "0.17", optional = true, features = ["debugging"], default-features = false }
 rstats              = { version = "2.1", optional = true }
@@ -37,4 +38,4 @@ heck = "0.4"
 
 [features]
 
-profiling = ["dep:function-timer", "dep:metrics-util", "dep:rstats"]
+profiling = ["dep:function-timer", "dep:metrics", "dep:metrics-util", "dep:rstats"]

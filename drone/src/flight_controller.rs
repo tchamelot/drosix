@@ -82,7 +82,6 @@ impl<'a> FlightController {
                         }
                     },
                     DEBUG => {
-                        // TODO validate
                         controller.handle_debug();
                         let (position_pid, velocity_pid) = controller.read_pid();
                         scope(MeasureRecord {
@@ -91,6 +90,9 @@ impl<'a> FlightController {
                             position_pid,
                             velocity_pid,
                         });
+                        #[cfg(feature = "profiling")]
+                        metrics::histogram!("drosix", "function" => "PRU pid")
+                            .record(controller.read_cycle() as f64 / 200e6);
                     },
                     _ => (),
                 }

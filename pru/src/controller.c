@@ -61,11 +61,6 @@ void main(void) {
     /* send_event(MST_15); */
     send_event(EVT_CONTROLLER_STATUS);
 
-
-#pragma CHECK_MISRA("-11.3")
-    PRU0_CTRL.CTRL_bit.CTR_EN = 1U;
-#pragma RESET_MISRA("11.3")
-
     while(run == 1U) {
         switch(check_event0()) {
         /* PID */
@@ -113,15 +108,7 @@ void main(void) {
         /* New data */
         case EVT_PID_NEW_DATA:
             /* handle new data */
-#pragma CHECK_MISRA("-11.3")
-            cycle = PRU0_CTRL.CYCLE;
-            stall = PRU0_CTRL.STALL;
-#pragma CHECK_MISRA("+11.3")
             memcpy((void*)&odometry, (void*)&controller.pid_input, sizeof(odometry_t));
-#pragma CHECK_MISRA("-11.3")
-            controller.cycle = PRU0_CTRL.CYCLE - cycle;
-            controller.stall = PRU0_CTRL.STALL - stall;
-#pragma CHECK_MISRA("+11.3")
             if(controller.debug_config == DEBUG_CONFIG_PID_NEW_DATA) {
               send_event(EVT_DEBUG);
             }
@@ -161,12 +148,15 @@ void configure_timer(void) {
 }
 
 void set_armed(void) {
+    PRU0_CTRL.CTRL_bit.CTR_EN = 1U;
     CT_ECAP.TSCTR = 0U;                             /* Reset the counter                    */
     CT_ECAP.ECEINT = ECAP_INT_CMPEQ;                /* Enable intterupt on CAP3 == TSCTR    */
     CT_ECAP.ECCLR  = 0xffU;                         /* Clear interrput flags                */
 }
 
 void clear_armed(void) {
+    PRU0_CTRL.CTRL_bit.CTR_EN = 0U;
+    PRU0_CTRL.CYCLE = 0;
     CT_ECAP.ECEINT = 0u;                            /* Disable ECAP interupt                */
     controller.pid_output[0] = 179999u;                /* Load motor arming value              */
     controller.pid_output[1] = 179999u;                /* Load motor arming value              */
