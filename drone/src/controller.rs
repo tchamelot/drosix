@@ -4,7 +4,7 @@ use prusst::{Channel, Evtout, EvtoutIrq, Host, Intc, IntcConfig, MemSegment, Pru
 
 use std::fs::File;
 
-use crate::types::{AnglePid, Angles, DebugConfig, Odometry, Pid};
+use crate::types::{Angles, DebugConfig, Odometry, PidConfig};
 
 const MOTORS_FW: &str = "/lib/firmware/motor.bin";
 const PID_FW: &str = "/lib/firmware/controller.bin";
@@ -14,13 +14,17 @@ const PID_FW: &str = "/lib/firmware/controller.bin";
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct SharedMem {
-    /// PID parameters for attitude controller
-    pub attitude_pid: VolatileCell<AnglePid>,
+    /// Period in ms
+    pub period: VolatileCell<u32>,
+    /// PID parameters for roll
+    pub pid_roll: VolatileCell<PidConfig>,
+    /// PID parameters for pitch
+    pub pid_pitch: VolatileCell<PidConfig>,
+    /// PID parameters for yaw
+    pub pid_yaw: VolatileCell<PidConfig>,
     /// PID parameters for thrust controller
-    pub thrust_pid: VolatileCell<Pid>,
+    pub pid_thrust: VolatileCell<PidConfig>,
     /// PID parameters for rate controller
-    pub rate_pid: VolatileCell<AnglePid>,
-    /// PID controller inp
     pub pid_input: VolatileCell<Odometry>,
     /// PID controller outputs: Motor[1-4] duty cycles
     pub pid_output: [VolatileCell<u32>; 4],
@@ -39,9 +43,11 @@ pub struct SharedMem {
 impl Default for SharedMem {
     fn default() -> Self {
         SharedMem {
-            attitude_pid: VolatileCell::new(AnglePid::default()),
-            thrust_pid: VolatileCell::new(Pid::default()),
-            rate_pid: VolatileCell::new(AnglePid::default()),
+            period: VolatileCell::new(10),
+            pid_roll: VolatileCell::new(PidConfig::default()),
+            pid_pitch: VolatileCell::new(PidConfig::default()),
+            pid_yaw: VolatileCell::new(PidConfig::default()),
+            pid_thrust: VolatileCell::new(PidConfig::default()),
             debug_config: VolatileCell::new(DebugConfig::None),
             pid_input: VolatileCell::new(Odometry::default()),
             pid_output: [VolatileCell::new(179_999); 4],
@@ -107,16 +113,11 @@ impl<'a> PruController<'a> {
         int_conf
     }
 
-    pub fn set_attitude_pid(&mut self, config: AnglePid) {
-        self.shared_mem.attitude_pid.set(config);
-    }
-
-    pub fn set_rate_pid(&mut self, config: AnglePid) {
-        self.shared_mem.rate_pid.set(config);
-    }
-
-    pub fn set_thrust_pid(&mut self, config: Pid) {
-        self.shared_mem.thrust_pid.set(config);
+    pub fn set_pid(&mut self, roll: PidConfig, pitch: PidConfig, yaw: PidConfig, thrust: PidConfig) {
+        self.shared_mem.pid_roll.set(roll);
+        self.shared_mem.pid_pitch.set(pitch);
+        self.shared_mem.pid_yaw.set(yaw);
+        self.shared_mem.pid_thrust.set(thrust);
     }
 
     /// Starts the PRU (load and launch firmwares).
@@ -254,22 +255,12 @@ mod tests {
         const PRU_DEBUG: Token = Token(1);
 
         let mut controller = PruController::new(&pru.intc, &mut pru.dram2);
-        let pids = AnglePid {
-            roll: Pid {
-                numerator: [10.0, 0.0, 0.0],
-                denominator: [0.0, 0.0],
-            },
-            pitch: Pid {
-                numerator: [10.0, 0.0, 0.0],
-                denominator: [0.0, 0.0],
-            },
-            yaw: Pid {
-                numerator: [10.0, 0.0, 0.0],
-                denominator: [0.0, 0.0],
-            },
+        let pid = PidConfig {
+            kpa: 10.0,
+            kpr: 10.0,
+            ..Default::default()
         };
-        controller.set_attitude_pid(pids);
-        controller.set_rate_pid(pids);
+        controller.set_pid(pid, pid, pid, pid);
 
         poller.register(&controller.status, PRU_STATUS, Interest::READABLE).unwrap();
         poller.register(&controller.debug, PRU_DEBUG, Interest::READABLE).unwrap();

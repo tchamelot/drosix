@@ -1,13 +1,19 @@
 #pragma once
+#include "shared-memory.h"
 
 struct pid_controller_t {
-    float a[3];
-    float b[2];
-    float inputs[2];
-    float outputs[2];
+    float kd[3];
+    float ki;
+    float kaw;
+    float max;
+    float min;
+    float d_out_prev;
+    float i_out_prev;
+    float input_prev;
+    float sat_err_prev[2];
 };
 
-void pid_init(struct pid_controller_t* pid, const volatile float a[3], const volatile float b[2]);
+void pid_init(struct pid_controller_t* pid, const volatile pid_config_t* config, const float sampling);
 
 void pid_reset(struct pid_controller_t* pid);
 

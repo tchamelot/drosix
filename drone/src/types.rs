@@ -3,19 +3,23 @@ use serde::{Deserialize, Serialize};
 /// Proportional Integral Derivative controller parameters
 #[repr(C)]
 #[derive(Serialize, Deserialize, Default, Copy, Clone, Debug)]
-pub struct Pid {
-    /// PID input gains
-    pub numerator: [f32; 3],
-    /// PID output gains
-    pub denominator: [f32; 2],
-}
-
-#[repr(C)]
-#[derive(Serialize, Deserialize, Default, Copy, Clone, Debug)]
-pub struct AnglePid {
-    pub roll: Pid,
-    pub pitch: Pid,
-    pub yaw: Pid,
+pub struct PidConfig {
+    /// Proportional gain for attitude
+    pub kpa: f32,
+    /// Proportional gain for rate
+    pub kpr: f32,
+    /// Integral constant
+    pub ti: f32,
+    /// Derivative constant
+    pub td: f32,
+    /// Derivative filter
+    pub filter: f32,
+    /// Anti windup factor
+    pub kaw: f32,
+    /// Upper limit
+    pub max: f32,
+    /// Lower limit
+    pub min: f32,
 }
 
 // #[bitmask(u32)]

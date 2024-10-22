@@ -8,15 +8,15 @@ enum debug_config {
   DEBUG_CONFIG_PWM_CHANGE,
 };
 
-struct pid {
-  float numerator[3];
-  float denominator[2];
-};
-
-struct angle_pid {
-  struct pid roll;
-  struct pid pitch;
-  struct pid yaw;
+struct pid_config {
+  float kpa;
+  float kpr;
+  float ti;
+  float td;
+  float filter;
+  float kaw;
+  float max;
+  float min;
 };
 
 struct angles {
@@ -31,22 +31,22 @@ struct odometry {
   float thrust;
 };
 
-typedef struct angle_pid angle_pid_t;
+typedef uint32_t u32;
 
-typedef struct pid pid_t;
+typedef struct pid_config pid_config_t;
 
 typedef struct odometry odometry_t;
-
-typedef uint32_t u32;
 
 typedef struct angles angles_t;
 
 typedef enum debug_config debug_config_t;
 
 struct shared_mem {
-  angle_pid_t attitude_pid;
-  pid_t thrust_pid;
-  angle_pid_t rate_pid;
+  u32 period;
+  pid_config_t pid_roll;
+  pid_config_t pid_pitch;
+  pid_config_t pid_yaw;
+  pid_config_t pid_thrust;
   odometry_t pid_input;
   u32 pid_output[4];
   angles_t p_pid;

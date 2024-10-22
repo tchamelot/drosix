@@ -3,7 +3,7 @@ use crate::controller::PruController;
 use crate::log::{scope, MeasureRecord};
 use crate::polling::Poller;
 use crate::sensor::{Error, Sensors};
-use crate::types::{Command, FlightCommand, Odometry, Pid};
+use crate::types::{Command, FlightCommand, Odometry, PidConfig};
 
 use mio::{Interest, Token};
 
@@ -48,12 +48,18 @@ impl<'a> FlightController {
 
         poller.register(&sensors.imu_event(), IMU, Interest::READABLE)?;
 
-        controller.set_rate_pid(DROSIX_CONFIG.get("rate_pid")?);
-        controller.set_attitude_pid(DROSIX_CONFIG.get("attitude_pid")?);
-        controller.set_thrust_pid(Pid {
-            numerator: [1.0, 0.0, 0.0],
-            denominator: [0.0, 0.0],
-        });
+        controller.set_pid(
+            DROSIX_CONFIG.get("roll_pid")?,
+            DROSIX_CONFIG.get("pitch_pid")?,
+            DROSIX_CONFIG.get("yaw_pid")?,
+            PidConfig {
+                kpa: 1.0,
+                kpr: 1.0,
+                max: 99999.0,
+                min: 0.0,
+                ..Default::default()
+            },
+        );
         controller.switch_debug(DROSIX_CONFIG.get("debug_config")?);
 
         PruController::start(&mut pru.pru0, &mut pru.pru1)?;

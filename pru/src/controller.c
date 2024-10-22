@@ -10,19 +10,20 @@
 #include "pid.h"
 #pragma RESET_MISRA("all")
 
-// FIXME create custom wraper for shared memory copying, memcpy is not safe
-// TODO use dedicated function for rate controller
+/* FIXME create custom wraper for shared memory copying, memcpy is not safe */
+/* TODO use dedicated function for rate controller */
 
 void main(void);
-void configure_timer(void);
+void configure_timer(uint32_t period);
 void set_armed(void);
 void clear_armed(void);
 
 
 void main(void) {
-    uint32_t i;
     uint8_t run = 1U;
-    struct pid_controller_t pids[7];
+    float kpa_roll, kpa_pitch, kpa_yaw;
+    struct pid_controller_t pid_roll, pid_pitch, pid_yaw, pid_config_thrust;
+    float sampling_period;
     odometry_t odometry;
     angles_t rate_set_point;
     angles_t rate_command;
@@ -39,14 +40,15 @@ void main(void) {
     while(check_event0() != EVT_MOTOR_STATUS) {}
 
     /* store pid coef in local memory */
-    pid_init(&pids[0], controller.attitude_pid.roll.numerator, controller.attitude_pid.roll.denominator);
-    pid_init(&pids[1], controller.attitude_pid.pitch.numerator, controller.attitude_pid.pitch.denominator);
-    pid_init(&pids[2], controller.attitude_pid.yaw.numerator, controller.attitude_pid.yaw.denominator);
-    pid_init(&pids[3], controller.thrust_pid.numerator, controller.thrust_pid.denominator);
-    pid_init(&pids[4], controller.rate_pid.roll.numerator, controller.rate_pid.roll.denominator);
-    pid_init(&pids[5], controller.rate_pid.pitch.numerator, controller.rate_pid.pitch.denominator);
-    pid_init(&pids[6], controller.rate_pid.yaw.numerator, controller.rate_pid.yaw.denominator);
+    sampling_period = (float)(controller.period) / 1000.0;
+    pid_init(&pid_roll, &controller.pid_roll, sampling_period);
+    pid_init(&pid_pitch, &controller.pid_pitch, sampling_period);
+    pid_init(&pid_yaw, &controller.pid_yaw, sampling_period);
+    pid_init(&pid_config_thrust, &controller.pid_thrust, sampling_period);
 
+    kpa_roll = controller.pid_roll.kpa;
+    kpa_pitch = controller.pid_pitch.kpa;
+    kpa_yaw = controller.pid_yaw.kpa;
     
     odometry.attitude.roll = 0.0;
     odometry.attitude.pitch = 0.0;
@@ -56,7 +58,7 @@ void main(void) {
     odometry.rate.yaw = 0.0;
     odometry.thrust = 0.0;
 
-    configure_timer();
+    configure_timer(controller.period * 100000u);
 
     /* send_event(MST_15); */
     send_event(EVT_CONTROLLER_STATUS);
@@ -70,13 +72,13 @@ void main(void) {
             cycle = PRU0_CTRL.CYCLE;
             stall = PRU0_CTRL.STALL;
 #pragma RESET_MISRA("11.3")
-            rate_set_point.roll = pid_run(&pids[0], odometry.attitude.roll);
-            rate_set_point.pitch = pid_run(&pids[1], odometry.attitude.pitch);
-            rate_set_point.yaw = pid_run(&pids[2], odometry.attitude.yaw);
-            thrust = pid_run(&pids[3], odometry.thrust);
-            rate_command.roll = pid_run(&pids[4], rate_set_point.roll - odometry.rate.roll);
-            rate_command.pitch = pid_run(&pids[5], rate_set_point.pitch - odometry.rate.pitch);
-            rate_command.yaw = pid_run(&pids[6], rate_set_point.yaw - odometry.rate.yaw);
+            rate_set_point.roll = odometry.attitude.roll * kpa_roll;
+            rate_set_point.pitch = odometry.attitude.pitch * kpa_pitch;
+            rate_set_point.yaw = odometry.attitude.yaw * kpa_yaw;
+            thrust = pid_run(&pid_config_thrust, odometry.thrust);
+            rate_command.roll = pid_run(&pid_roll, rate_set_point.roll - odometry.rate.roll);
+            rate_command.pitch = pid_run(&pid_pitch, rate_set_point.pitch - odometry.rate.pitch);
+            rate_command.yaw = pid_run(&pid_yaw, rate_set_point.yaw - odometry.rate.yaw);
 
 #pragma CHECK_MISRA("-10.3, -12.1")
             controller.pid_output[0] = (uint32_t)(199999 + (int32_t)(thrust + rate_command.roll + rate_command.pitch + rate_command.yaw));
@@ -118,9 +120,10 @@ void main(void) {
             break;
         case EVT_CLEAR_ARMED:
             clear_armed();
-            for(i = 0u; i < 7; i++) {
-              pid_reset(&pids[i]);
-            }
+            pid_reset(&pid_roll);
+            pid_reset(&pid_pitch);
+            pid_reset(&pid_yaw);
+            pid_reset(&pid_config_thrust);
             break;
         /* No event yet */
         case None:
@@ -137,10 +140,10 @@ void main(void) {
     __halt();
 }
 
-void configure_timer(void) {
+void configure_timer(uint32_t period) {
     CT_INTC.CMR3_bit.CH_MAP_15 = 0U;                /* Map S15 to channel 0                 */
     CT_INTC.EISR = ECAP_TIMER;                      /* Enable S15                           */
-    CT_ECAP.CAP3 = (uint32_t)PID_PERIOD / 5U - 1U;  /* Set the sampling period              */
+    CT_ECAP.CAP3 = (period / 5U) - 1U;                /* Set the sampling period              */
     CT_ECAP.ECCTL2 = ECAP_APWM_MODE | ECAP_CTRRUN;  /* APWM mode and counter free-running   */
     CT_ECAP.TSCTR = 0U;                             /* Reset the counter                    */
     CT_ECAP.ECEINT = 0U;                            /* Disable ECAP intterupt               */

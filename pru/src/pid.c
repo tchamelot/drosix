@@ -2,31 +2,80 @@
 #include <stdint.h>
 #include "pid.h"
 
-void pid_init(struct pid_controller_t* pid, const volatile float a[3], const volatile float b[2]) {
-    uint32_t i;
-    for(i = 0u; i < 3; i++) {
-      pid->a[i] = a[i];
+void pid_init(struct pid_controller_t* pid, const volatile pid_config_t* config, const float sampling) {
+    float kp, ti, td, n, kaw, t;
+    float  div;
+
+
+    kp = config->kpr;
+    ti = config->ti;
+    td = config->td;
+    n = config->filter;
+    kaw = config->kaw;
+    t = sampling;
+
+    // TODO check t != 0 
+
+    // Proportional Derivative
+    if(td != 0.0) {
+        div = n*t + 2*td;
+        pid->kd[0] = kp * (n*t + 2*n*td + 2*td) / div;
+        pid->kd[1] = kp * (n*t - 2*n*td - 2*td) / div;
+        pid->kd[2] = (n*t - 2*td) / div;
     }
-    for(i = 0u; i < 2; i++) {
-      pid->b[i] = b[i];
+    else {
+        pid->kd[0] = kp;
+        pid->kd[1] = 0.0;
+        pid->kd[2] = 0.0;
     }
-    memset(pid->inputs, 0, sizeof(float)*2);
-    memset(pid->outputs, 0, sizeof(float)*2);
+
+    // Intergative anti-windup
+    if(ti != 0.0) {
+        pid->ki = (kp*t) / (2*ti);
+        pid->kaw = kaw;
+    }
+    else {
+        pid->ki = 0.0;
+        pid->kaw = 0.0;
+    }
+
+    pid->max = config->max;
+    pid->min = config->min;
+
+    pid_reset(pid);
 }
 
 void pid_reset(struct pid_controller_t* pid) {
-    memset(pid->inputs, 0, sizeof(float)*2);
-    memset(pid->outputs, 0, sizeof(float)*2);
+    pid->d_out_prev = 0.0;
+    pid->i_out_prev = 0.0;
+    pid->input_prev = 0.0;
+    pid->sat_err_prev[0] = 0.0;
+    pid->sat_err_prev[1] = 0.0;
 }
 
 float pid_run(struct pid_controller_t* pid, float input) {
-    float output = input*pid->a[0] + pid->inputs[0]*pid->a[1] + pid->inputs[1]*pid->a[2] - pid->outputs[0]*pid->b[0] - pid->outputs[1]*pid->b[1];
+    float out_pd, out_i, out_pid, output;
+    float i_in;
 
-    pid->outputs[1] = pid->outputs[0];
-    pid->outputs[0] = output;
+    out_pd = input * pid->kd[0] + pid->input_prev * pid->kd[1] - pid->d_out_prev * pid->kd[2];
+    i_in = input + pid->sat_err_prev[0] * pid->kaw;
+    out_i = pid->ki * (i_in + pid->sat_err_prev[1]) + pid->i_out_prev;
 
-    pid->inputs[1] = pid->inputs[0];
-    pid->inputs[0] = input;
+    out_pid = out_pd + out_i;
+
+    if(out_pid > pid->max) {
+        output = pid->max;
+    } else if(out_pid < pid->min) {
+        output = pid->min;
+    } else {
+        output = out_pid;
+    }
+
+    pid->sat_err_prev[0] = output - out_pid;
+    pid->sat_err_prev[1] = i_in;
+    pid->d_out_prev = out_pd;
+    pid->i_out_prev = out_i;
+    pid->input_prev = input;
 
     return output;
 }
