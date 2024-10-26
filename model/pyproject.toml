@@ -15,8 +15,14 @@ dependencies = [
     "numpy",
     "scipy",
     "control",
+    "slycot",
     "sympy",
     "matplotlib",
     "toml",
     "pandas",
+    "cffi"
     ]
+
+[tool.block]
+line-length = 90
+
