@@ -58,7 +58,7 @@ void main(void) {
     odometry.rate.yaw = 0.0;
     odometry.thrust = 0.0;
 
-    configure_timer(controller.period * 100000u);
+    configure_timer(controller.period * 1000000u);
 
     /* send_event(MST_15); */
     send_event(EVT_CONTROLLER_STATUS);
