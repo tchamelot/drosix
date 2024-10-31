@@ -117,8 +117,10 @@ impl<'a> FlightController {
 
         measures.thrust = 0.0;
         measures.thrust += self.command.thrust * 99999.0;
-        measures.attitude.roll *= -1.0 + self.command.angles.pitch * f32::to_radians(5.0);
-        measures.attitude.pitch *= -1.0 + self.command.angles.roll * f32::to_radians(5.0);
+        measures.attitude.roll *= -1.0;
+        measures.attitude.roll += self.command.angles.roll * f32::to_radians(15.0);
+        measures.attitude.pitch *= -1.0;
+        measures.attitude.pitch += self.command.angles.pitch * f32::to_radians(15.0);
         measures.attitude.yaw *= -1.0;
 
         controller.set_pid_inputs(measures);

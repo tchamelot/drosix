@@ -20,7 +20,8 @@ dependencies = [
     "matplotlib",
     "toml",
     "pandas",
-    "cffi"
+    "cffi",
+    "setuptools"
     ]
 
 [tool.block]

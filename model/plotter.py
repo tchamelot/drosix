@@ -93,7 +93,7 @@ class DrosixSink:
                 flush = True
 
             if cursor >= frame.shape[0] or flush:
-                frame[:cursor, 1:4] *= 5
+                frame[:cursor, 1:4] *= 15
                 frame[:cursor, 4:10] *= TO_DEG
                 yield frame[:cursor].T
                 cursor = 0
@@ -229,19 +229,19 @@ class Plotter:
             ax=self.ax_vel,
             title="Velocity",
             labels=["Roll", "Pitch", "Yaw"],
-            ylim=(-50, 50),
+            ylim=(-100, 100),
         )
         self.graph["Position PID"] = Graph(
             ax=self.ax_ppid,
             title="Position PID",
             labels=["Roll", "Pitch", "Yaw"],
-            ylim=(-10, 10),
+            ylim=(-5, 5),
         )
         self.graph["Velocity PID"] = Graph(
             ax=self.ax_vpid,
             title="Velocitiy PID",
             labels=["Roll", "Pitch", "Yaw"],
-            ylim=(-50000, 50000),
+            ylim=(-20000, 20000),
         )
 
         self.fig.canvas.mpl_connect("button_press_event", self.on_click)
@@ -313,13 +313,12 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--file")
     parser.add_argument("-r", "--record", action="store_true")
     args = parser.parse_args()
-    print(args)
 
     if args.file:
         sink = DrosixSink(file=args.file)
         plotter = Plotter(sink, window_size=None)
     else:
-        sink = DrosixSink(port=args.port)
+        sink = DrosixSink(port=args.port, record=args.record)
         plotter = Plotter(sink)
 
     plt.show()
