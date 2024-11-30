@@ -22,6 +22,7 @@ toml                = "0.8"
 
 # Remote controller
 gilrs = "0.10"
+pyo3 = "0.23.1"
 
 anyhow              = "1.0"
 config              = { version = "0.14", default-features = false, features = ["toml"] }
