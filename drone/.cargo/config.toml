@@ -1,0 +1,13 @@
+[profile.dev]
+opt-level = 3
+debug = false
+strip = true
+lto = true
+
+[profile.release]
+opt-level = 3
+debug = false
+strip = true
+lto = true
+panic = "abort"
+
